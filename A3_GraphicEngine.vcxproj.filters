@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="Headers">
@@ -24,12 +24,6 @@
     </Filter>
     <Filter Include="Resource\Textures">
       <UniqueIdentifier>{92389da1-f2d8-437e-839f-cd012aad8400}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source\imgui">
-      <UniqueIdentifier>{b3b2552e-ed17-4e6d-b845-6ae3e65448c0}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source\ImGuizmo">
-      <UniqueIdentifier>{572cb9b9-2d8d-459e-b50a-0b0d243dd6d2}</UniqueIdentifier>
     </Filter>
     <Filter Include="Shader\PBR_IBL">
       <UniqueIdentifier>{2c9aeda1-53d9-4aab-a0be-b69e54d8a10c}</UniqueIdentifier>
@@ -58,13 +52,10 @@
     <Filter Include="Source\Scene">
       <UniqueIdentifier>{e97e584a-a105-4c09-82f0-4d6c2ee76ccd}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source\glad">
-      <UniqueIdentifier>{acddce34-9f88-4954-b294-b0fe79f0e0dc}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source\Scenes">
+    <Filter Include="Source\Components">
       <UniqueIdentifier>{ed3a5411-afbc-4005-be4c-4d67d86a73b0}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Headers\Scenes">
+    <Filter Include="Headers\Components">
       <UniqueIdentifier>{3b61b604-9d93-48a6-a166-2226c5436385}</UniqueIdentifier>
     </Filter>
     <Filter Include="Shader\Sky_Atmosphere">
@@ -75,30 +66,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="third_party\ImGuizmo\ImGuizmo.cpp">
-      <Filter>Source\ImGuizmo</Filter>
-    </ClCompile>
-    <ClCompile Include="third_party\imgui_docking\imgui.cpp">
-      <Filter>Source\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="third_party\imgui_docking\imgui_demo.cpp">
-      <Filter>Source\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="third_party\imgui_docking\imgui_draw.cpp">
-      <Filter>Source\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="third_party\imgui_docking\imgui_tables.cpp">
-      <Filter>Source\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="third_party\imgui_docking\imgui_widgets.cpp">
-      <Filter>Source\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="third_party\imgui_docking\backends\imgui_impl_opengl3.cpp">
-      <Filter>Source\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="third_party\imgui_docking\backends\imgui_impl_glfw.cpp">
-      <Filter>Source\imgui</Filter>
-    </ClCompile>
     <ClCompile Include="src\renderer\Camera.cpp">
       <Filter>Source\Core</Filter>
     </ClCompile>
@@ -108,25 +75,16 @@
     <ClCompile Include="src\core\Editor.cpp">
       <Filter>Source\Core</Filter>
     </ClCompile>
-    <ClCompile Include="src\renderer\Environment.cpp">
+    <ClCompile Include="src\renderer\IBL.cpp">
       <Filter>Source\Renderer</Filter>
     </ClCompile>
-    <ClCompile Include="src\glad.c">
-      <Filter>Source\glad</Filter>
-    </ClCompile>
-    <ClCompile Include="src\renderer\IBL.cpp">
+    <ClCompile Include="src\renderer\LUT.cpp">
       <Filter>Source\Renderer</Filter>
     </ClCompile>
     <ClCompile Include="src\renderer\Mesh.cpp">
       <Filter>Source\Renderer</Filter>
     </ClCompile>
     <ClCompile Include="src\renderer\Model.cpp">
-      <Filter>Source\Renderer</Filter>
-    </ClCompile>
-    <ClCompile Include="src\renderer\Primitive.cpp">
-      <Filter>Source\Renderer</Filter>
-    </ClCompile>
-    <ClCompile Include="src\renderer\RenderProfiler.cpp">
       <Filter>Source\Renderer</Filter>
     </ClCompile>
     <ClCompile Include="src\scene\Scene.cpp">
@@ -150,41 +108,20 @@
     <ClCompile Include="src\scene\GameObject.cpp">
       <Filter>Source\Scene</Filter>
     </ClCompile>
-    <ClCompile Include="src\scenes\BaseScene.cpp">
-      <Filter>Source\Scenes</Filter>
-    </ClCompile>
     <ClCompile Include="src\core\Time.cpp">
       <Filter>Source\Core</Filter>
     </ClCompile>
-    <ClCompile Include="src\utils\Recorder.cpp">
+    <ClCompile Include="src\utils\RenderProfiler.cpp">
       <Filter>Source\Utils</Filter>
     </ClCompile>
     <ClCompile Include="src\core\Log.cpp">
       <Filter>Source\Core</Filter>
     </ClCompile>
-    <ClCompile Include="src\scenes\PBRIBL_Base.cpp">
-      <Filter>Source\Scenes</Filter>
+    <ClCompile Include="src\components\VolumetricCloud.cpp">
+      <Filter>Source\Components</Filter>
     </ClCompile>
-    <ClCompile Include="src\scenes\PBRIBL_Custom.cpp">
-      <Filter>Source\Scenes</Filter>
-    </ClCompile>
-    <ClCompile Include="src\scenes\PBRIBL_Single.cpp">
-      <Filter>Source\Scenes</Filter>
-    </ClCompile>
-    <ClCompile Include="src\scenes\PBRIBL_SingleTex.cpp">
-      <Filter>Source\Scenes</Filter>
-    </ClCompile>
-    <ClCompile Include="src\scenes\PBRIBL_Spheres.cpp">
-      <Filter>Source\Scenes</Filter>
-    </ClCompile>
-    <ClCompile Include="src\scenes\VolumetricCloud.cpp">
-      <Filter>Source\Scenes</Filter>
-    </ClCompile>
-    <ClCompile Include="src\scenes\Landscape.cpp">
-      <Filter>Source\Scenes</Filter>
-    </ClCompile>
-    <ClCompile Include="src\scenes\SkyAtmosphere.cpp">
-      <Filter>Source\Scenes</Filter>
+    <ClCompile Include="src\components\SkyAtmosphere.cpp">
+      <Filter>Source\Components</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -274,9 +211,6 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="third_party\ImGuizmo\ImGradient.h">
-      <Filter>Source\ImGuizmo</Filter>
-    </ClInclude>
     <ClInclude Include="include\scene\Scene.h">
       <Filter>Headers\Scene</Filter>
     </ClInclude>
@@ -298,25 +232,13 @@
     <ClInclude Include="include\renderer\IBL.h">
       <Filter>Headers\Renderer</Filter>
     </ClInclude>
-    <ClInclude Include="include\renderer\Environment.h">
+    <ClInclude Include="include\renderer\LUT.h">
       <Filter>Headers\Renderer</Filter>
-    </ClInclude>
-    <ClInclude Include="include\core\LogSink.h">
-      <Filter>Headers\Core</Filter>
     </ClInclude>
     <ClInclude Include="include\renderer\Mesh.h">
       <Filter>Headers\Renderer</Filter>
     </ClInclude>
     <ClInclude Include="include\renderer\Model.h">
-      <Filter>Headers\Renderer</Filter>
-    </ClInclude>
-    <ClInclude Include="include\renderer\Primitive.h">
-      <Filter>Headers\Renderer</Filter>
-    </ClInclude>
-    <ClInclude Include="include\renderer\RenderProfiler.h">
-      <Filter>Headers\Renderer</Filter>
-    </ClInclude>
-    <ClInclude Include="include\renderer\RenderContext.h">
       <Filter>Headers\Renderer</Filter>
     </ClInclude>
     <ClInclude Include="include\renderer\Shader.h">
@@ -334,41 +256,20 @@
     <ClInclude Include="include\core\Window.h">
       <Filter>Headers\Core</Filter>
     </ClInclude>
-    <ClInclude Include="include\core\WindowContext.h">
-      <Filter>Headers\Core</Filter>
-    </ClInclude>
-    <ClInclude Include="include\scenes\BaseScene.h">
-      <Filter>Headers\Scenes</Filter>
-    </ClInclude>
     <ClInclude Include="include\core\Time.h">
       <Filter>Headers\Core</Filter>
     </ClInclude>
-    <ClInclude Include="include\utils\Recorder.h">
+    <ClInclude Include="include\utils\RenderProfiler.h">
       <Filter>Headers\Utils</Filter>
     </ClInclude>
-    <ClInclude Include="include\scenes\PBRIBL_Base.h">
-      <Filter>Headers\Scenes</Filter>
+    <ClInclude Include="include\components\SkyAtmosphere.h">
+      <Filter>Headers\Components</Filter>
     </ClInclude>
-    <ClInclude Include="include\scenes\PBRIBL_Custom.h">
-      <Filter>Headers\Scenes</Filter>
+    <ClInclude Include="include\components\VolumetricCloud.h">
+      <Filter>Headers\Components</Filter>
     </ClInclude>
-    <ClInclude Include="include\scenes\PBRIBL_Single.h">
-      <Filter>Headers\Scenes</Filter>
-    </ClInclude>
-    <ClInclude Include="include\scenes\PBRIBL_SingleTex.h">
-      <Filter>Headers\Scenes</Filter>
-    </ClInclude>
-    <ClInclude Include="include\scenes\PBRIBL_Spheres.h">
-      <Filter>Headers\Scenes</Filter>
-    </ClInclude>
-    <ClInclude Include="include\scenes\SkyAtmosphere.h">
-      <Filter>Headers\Scenes</Filter>
-    </ClInclude>
-    <ClInclude Include="include\scenes\VolumetricCloud.h">
-      <Filter>Headers\Scenes</Filter>
-    </ClInclude>
-    <ClInclude Include="include\scenes\Landscape.h">
-      <Filter>Headers\Scenes</Filter>
+    <ClInclude Include="include\core\opengl.h">
+      <Filter>Headers\Core</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

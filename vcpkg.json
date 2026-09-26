@@ -1,7 +1,19 @@
 {
-  "name": "alpha3d",
-  "version": "1.0.0",
   "dependencies": [
-    "assimp"
+    "assimp",
+    "glad",
+    "glfw3",
+    "glm",
+    {
+      "name": "imgui",
+      "features": [
+        "docking-experimental",
+        "glfw-binding",
+        "opengl3-binding"
+      ]
+    },
+    "spdlog",
+    "stb",
+    "tomlplusplus"
   ]
 }

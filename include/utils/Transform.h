@@ -16,13 +16,13 @@ struct Transform {
     // Sync
     void SyncToMatrix() {
         matrix = glm::translate(glm::mat4(1.0f), position);
-        glm::quat q = glm::quat(glm::radians(rotation));  // Ò»´ÎĞÔ°ÑÈı¸öÅ·À­½Ç×ª³ÉÒ»¸öËÄÔªÊı
+        glm::quat q = glm::quat(glm::radians(rotation));  // ä¸€æ¬¡æ€§æŠŠä¸‰ä¸ªæ¬§æ‹‰è§’è½¬æˆä¸€ä¸ªå››å…ƒæ•°
         matrix = matrix * glm::mat4_cast(q);
         matrix = glm::scale(matrix, scale);
     }
 
     void SyncFromMatrix() {
-        // ´Ó matrix ·´½â³ö position/rotation/scale
+        // ä» matrix åè§£å‡º position/rotation/scale
         glm::vec3 skew;
         glm::vec4 perspective;
         glm::quat orientation;
@@ -37,7 +37,7 @@ struct Transform {
         return glm::mat3(glm::transpose(glm::inverse(matrix)));
     }
 
-    // Setters ¡ª ÉèÖÃºó×Ô¶¯Í¬²½ matrix
+    // Setters â€” è®¾ç½®åè‡ªåŠ¨åŒæ­¥ matrix
     void SetPosition(const glm::vec3& pos) {
         position = pos;
         SyncToMatrix();
@@ -53,7 +53,7 @@ struct Transform {
         SyncToMatrix();
     }
 
-    // Translate/Rotate/Scale ÔöÁ¿²Ù×÷
+    // Translate/Rotate/Scale å¢é‡æ“ä½œ
     void Translate(const glm::vec3& delta) {
         position += delta;
         SyncToMatrix();

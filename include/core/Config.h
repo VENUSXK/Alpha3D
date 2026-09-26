@@ -2,10 +2,9 @@
 #include <string>
 
 struct WindowConfig {
-    int width = 800;
-    int height = 800;
-    int x = 100;
-    int y = 100;
+    int width = 800, height = 800;
+    int monitorCenterX = 0, monitorCenterY = 0;
+    bool hasMonitorCenter = false;
     std::string title = "Engine";
 };
 struct RendererConfig {

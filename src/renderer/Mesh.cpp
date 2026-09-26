@@ -1,10 +1,11 @@
-﻿#include <glad/glad.h>
+#include "core/opengl.h"
 #include "core/Log.h"
 
 #include "renderer/Mesh.h"
 #include "renderer/Texture.h"
+#include "renderer/Shader.h"
 
-Mesh::Mesh(const float* vertices, unsigned int size) {
+Mesh::Mesh(const float* vertices, std::size_t size) {
 	vertex_count = size / (8 * sizeof(float)); // 每个顶点5个float (xyz + uv)
 
 	// VAO
@@ -30,7 +31,7 @@ Mesh::Mesh(const float* vertices, unsigned int size) {
 
 	glBindVertexArray(0);
 
-	LOG_INFO(Mesh, "Mesh created, {} vertices.", vertex_count);
+	LOG_INFO("Mesh created, {} vertices.", vertex_count);
 }
 
 Mesh::Mesh(std::vector<Vertex> vertices, std::vector<unsigned int> indices, std::vector<Texture> textures)
@@ -96,10 +97,10 @@ void Mesh::Draw() {
 	glBindVertexArray(vao);
 
 	if (indices.empty()) { // Cube
-		glDrawArrays(GL_TRIANGLES, 0, vertex_count);
+		glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(vertex_count));
 	}
 	else { // Sphere
-		glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
+		glDrawElements(GL_TRIANGLES, static_cast<GLsizei>((GLsizei)indices.size()), GL_UNSIGNED_INT, nullptr);
 	}
 
 	glBindVertexArray(0);
@@ -114,7 +115,7 @@ void Mesh::Draw(Shader& shader)
 	for (unsigned int i = 0; i < this->textures.size(); i++)
 	{
 		glActiveTexture(GL_TEXTURE0 + i + 3); 
-		//LOG_TRACE(Model, "loading texture {}", GL_TEXTURE0 + i + 3);
+		//LOG_TRACE("loading texture {}", GL_TEXTURE0 + i + 3);
 		std::string number;
 		std::string type = this->textures[i].GetType();
 		if (type == "albedo")
@@ -127,14 +128,11 @@ void Mesh::Draw(Shader& shader)
 			number = std::to_string(emissiveNr++);
 
 		shader.setInt(("material." + type + "_" + number).c_str(), i + 3);
-		//LOG_TRACE(Model, "material." + type + "_" + number);
+		//LOG_TRACE("material." + type + "_" + number);
 		glBindTexture(GL_TEXTURE_2D, this->textures[i].GetId());
 	}
 	glActiveTexture(GL_TEXTURE0);
 
 
-	// 绘制网格
-	glBindVertexArray(vao);
-	glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
-	glBindVertexArray(0);
+	Draw();
 }

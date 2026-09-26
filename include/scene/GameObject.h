@@ -5,7 +5,6 @@
 #include "utils/Transform.h"
 
 class Model;
-class Mesh;
 class Shader;
 
 struct LightComponent {
@@ -29,14 +28,10 @@ public:
     std::optional<PBRTestComponent> pbr_sphere;
 
     GameObject(uint32_t id, std::string name, Model* model, Shader* shader);
-    GameObject(uint32_t id, std::string name, Mesh* mesh, Shader* shader);
 
     uint32_t GetID()   const { return id; }
     const std::string& GetName() const { return name; }
     void SetName(const std::string& name) { this->name = name; }
-
-    void SetType(std::string type) { this->type = type; }
-    std::string GetType(std::string type) { return this->type; }
 
     // Transform
     Transform& GetTransform() { return transform; }
@@ -58,7 +53,7 @@ public:
 
     // Shader
     Shader* GetShader() const { return shader; }
-    void SetShader(Shader* shader) { shader = shader; }
+    void SetShader(Shader* shader) { this->shader = shader; }
 
     // Visibility
     bool IsVisible() const { return visible; }
@@ -74,13 +69,11 @@ private:
 
     uint32_t id;
     std::string name;
-    std::string type;
 
     Transform transform;
     
     Shader* shader = nullptr;
     Model* model = nullptr;
-    Mesh* mesh = nullptr;
     
     bool visible = true;
 };

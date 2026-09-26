@@ -1,10 +1,37 @@
 #include "renderer/IBL.h"
-#include "stb_image.h"
+
+#include <filesystem>
 #include <iostream>
+
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+
+#include "stb_image.h"
+#include "renderer/Model.h"
 #include "renderer/Shader.h"
-#include "renderer/Mesh.h"
+
+void IBL::Scan(const std::string& directory) {
+    paths.clear();
+    names.clear();
+
+    for (const auto& entry : std::filesystem::directory_iterator(directory)) {
+        const std::string extension = entry.path().extension().string();
+        if (extension != ".hdr" && extension != ".exr") continue;
+
+        paths.push_back(entry.path().string());
+        names.push_back(entry.path().stem().string());
+    }
+
+    if (selected >= static_cast<int>(paths.size())) selected = 0;
+    changed = false;
+}
+
+bool IBL::Select(int index) {
+    if (index < 0 || index >= static_cast<int>(paths.size()) || index == selected) return false;
+    selected = index;
+    changed = true;
+    return true;
+}
 
 static void RenderQuad_IBL()
 {
@@ -34,7 +61,7 @@ static void RenderQuad_IBL()
 
 void IBL::Load(
     const std::string& hdr_path,
-    Mesh& cubeMesh,
+    Model& cubeModel,
     Shader& to_cubemap_shader,
     Shader& irradiance_shader,
     Shader& prefilter_shader,
@@ -106,10 +133,10 @@ void IBL::Load(
         to_cubemap_shader.setMat4("view", captureViews[i]);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, envCubemap, 0);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        cubeMesh.Draw();
+        cubeModel.Draw(to_cubemap_shader);
     }
     glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
-    glDeleteTextures(1, &hdrTexture); // ≤ª‘Ÿ–Ë“™
+    glDeleteTextures(1, &hdrTexture); // ‰∏çÂÜçÈúÄË¶Å
 
 
 
@@ -139,13 +166,13 @@ void IBL::Load(
         irradiance_shader.setMat4("view", captureViews[i]);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, irradianceMap, 0);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        cubeMesh.Draw();
+        cubeModel.Draw(irradiance_shader);
     }
 
     // ------------------ Prefilter map ------------------
     
-    const float prefilter_resolution = 1024;
-    const unsigned int maxMipLevels = 5;
+    const int prefilter_resolution = 1024;
+    const int maxMipLevels = 5;
 
     glGenTextures(1, &prefilterMap);
     glBindTexture(GL_TEXTURE_CUBE_MAP, prefilterMap);
@@ -164,19 +191,19 @@ void IBL::Load(
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
 
-    for (unsigned int mip = 0; mip < maxMipLevels; ++mip) {
-        unsigned int mipSize = prefilter_resolution * std::pow(0.5f, mip);
+    for (int mip = 0; mip < maxMipLevels; ++mip) {
+        const int mipSize = (unsigned int)(prefilter_resolution >> mip);
         glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
         glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, mipSize, mipSize);
         glViewport(0, 0, mipSize, mipSize);
 
-        float roughness = (float)mip / (float)(maxMipLevels - 1);
+        const float roughness = static_cast<float>(mip) / static_cast<float>(maxMipLevels - 1);
         prefilter_shader.setFloat("roughness", roughness);
         for (unsigned int i = 0; i < 6; ++i) {
             prefilter_shader.setMat4("view", captureViews[i]);
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, prefilterMap, mip);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-            cubeMesh.Draw();
+            cubeModel.Draw(prefilter_shader);
         }
     }
 

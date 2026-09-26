@@ -1,12 +1,11 @@
 #pragma once
-#include <glad/glad.h>
+#include "core/opengl.h"
 
-// Viewport.h
 class Camera;
 class Viewport {
 public:
-    void Init(int width, int height);
-    void Resize(int width, int height);
+    void Init(float width, float height);
+    void Resize(float width, float height);
     void BeginRender();
     void EndRender();
     GLuint GetFBOId() const { return this->fboID; }

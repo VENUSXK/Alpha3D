@@ -26,36 +26,18 @@
     <ClCompile Include="src\core\Time.cpp" />
     <ClCompile Include="src\core\Viewport.cpp" />
     <ClCompile Include="src\core\Window.cpp" />
-    <ClCompile Include="src\glad.c" />
     <ClCompile Include="src\renderer\Camera.cpp" />
-    <ClCompile Include="src\renderer\Environment.cpp" />
     <ClCompile Include="src\renderer\IBL.cpp" />
+    <ClCompile Include="src\renderer\LUT.cpp" />
     <ClCompile Include="src\renderer\Mesh.cpp" />
     <ClCompile Include="src\renderer\Model.cpp" />
-    <ClCompile Include="src\renderer\Primitive.cpp" />
-    <ClCompile Include="src\renderer\RenderProfiler.cpp" />
     <ClCompile Include="src\renderer\Shader.cpp" />
     <ClCompile Include="src\renderer\Texture.cpp" />
-    <ClCompile Include="src\scenes\BaseScene.cpp" />
-    <ClCompile Include="src\scenes\Landscape.cpp" />
-    <ClCompile Include="src\scenes\PBRIBL_Custom.cpp" />
-    <ClCompile Include="src\scenes\PBRIBL_Spheres.cpp" />
-    <ClCompile Include="src\scenes\PBRIBL_SingleTex.cpp" />
-    <ClCompile Include="src\scenes\PBRIBL_Base.cpp" />
-    <ClCompile Include="src\scenes\PBRIBL_Single.cpp" />
-    <ClCompile Include="src\scenes\SkyAtmosphere.cpp" />
-    <ClCompile Include="src\scenes\VolumetricCloud.cpp" />
+    <ClCompile Include="src\components\SkyAtmosphere.cpp" />
+    <ClCompile Include="src\components\VolumetricCloud.cpp" />
     <ClCompile Include="src\scene\GameObject.cpp" />
     <ClCompile Include="src\scene\Scene.cpp" />
-    <ClCompile Include="src\utils\Recorder.cpp" />
-    <ClCompile Include="third_party\ImGuizmo\ImGuizmo.cpp" />
-    <ClCompile Include="third_party\imgui_docking\backends\imgui_impl_glfw.cpp" />
-    <ClCompile Include="third_party\imgui_docking\backends\imgui_impl_opengl3.cpp" />
-    <ClCompile Include="third_party\imgui_docking\imgui.cpp" />
-    <ClCompile Include="third_party\imgui_docking\imgui_demo.cpp" />
-    <ClCompile Include="third_party\imgui_docking\imgui_draw.cpp" />
-    <ClCompile Include="third_party\imgui_docking\imgui_tables.cpp" />
-    <ClCompile Include="third_party\imgui_docking\imgui_widgets.cpp" />
+    <ClCompile Include="src\utils\RenderProfiler.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\..\Downloads\icon.svg" />
@@ -91,33 +73,21 @@
     <ClInclude Include="include\core\Config.h" />
     <ClInclude Include="include\core\Editor.h" />
     <ClInclude Include="include\core\Log.h" />
-    <ClInclude Include="include\core\LogSink.h" />
     <ClInclude Include="include\core\Time.h" />
+    <ClInclude Include="include\core\opengl.h" />
     <ClInclude Include="include\core\Viewport.h" />
     <ClInclude Include="include\core\Window.h" />
-    <ClInclude Include="include\core\WindowContext.h" />
     <ClInclude Include="include\renderer\Camera.h" />
-    <ClInclude Include="include\renderer\Environment.h" />
     <ClInclude Include="include\renderer\IBL.h" />
+    <ClInclude Include="include\renderer\LUT.h" />
     <ClInclude Include="include\renderer\Mesh.h" />
     <ClInclude Include="include\renderer\Model.h" />
-    <ClInclude Include="include\renderer\Primitive.h" />
-    <ClInclude Include="include\renderer\RenderProfiler.h" />
-    <ClInclude Include="include\renderer\RenderContext.h" />
     <ClInclude Include="include\renderer\Shader.h" />
     <ClInclude Include="include\renderer\Texture.h" />
-    <ClInclude Include="include\scenes\BaseScene.h" />
-    <ClInclude Include="include\scenes\Landscape.h" />
-    <ClInclude Include="include\scenes\PBRIBL_Custom.h" />
-    <ClInclude Include="include\scenes\PBRIBL_Spheres.h" />
-    <ClInclude Include="include\scenes\PBRIBL_SingleTex.h" />
-    <ClInclude Include="include\scenes\PBRIBL_Base.h" />
-    <ClInclude Include="include\scenes\PBRIBL_Single.h" />
-    <ClInclude Include="include\scenes\SkyAtmosphere.h" />
-    <ClInclude Include="include\scenes\VolumetricCloud.h" />
-    <ClInclude Include="include\utils\Recorder.h" />
+    <ClInclude Include="include\components\SkyAtmosphere.h" />
+    <ClInclude Include="include\components\VolumetricCloud.h" />
+    <ClInclude Include="include\utils\RenderProfiler.h" />
     <ClInclude Include="include\utils\Transform.h" />
-    <ClInclude Include="third_party\ImGuizmo\ImGradient.h" />
     <ClInclude Include="include\scene\GameObject.h" />
     <ClInclude Include="include\scene\Scene.h" />
   </ItemGroup>
@@ -152,7 +122,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
@@ -181,9 +151,15 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <LibraryPath>C:\Users\17912\Projects\GraphicEngine\A3_GraphicEngine\vcpkg_installed\x64-windows\lib;C:\Users\17912\Projects\GraphicEngine\A3_GraphicEngine\third_party\lib;$(LibraryPath)</LibraryPath>
-    <ExternalIncludePath>C:\Users\17912\Projects\GraphicEngine\A3_GraphicEngine\third_party\imgui_docking;C:\Users\17912\Projects\GraphicEngine\A3_GraphicEngine\vcpkg_installed\x64-windows\include;C:\Users\17912\Projects\GraphicEngine\A3_GraphicEngine\include;C:\Users\17912\Projects\GraphicEngine\A3_GraphicEngine\third_party;$(ExternalIncludePath)</ExternalIncludePath>
-    <OutDir>build</OutDir>
+    <LibraryPath>$(SolutionDir)\vcpkg_installed\x64-windows\lib;$(LibraryPath)</LibraryPath>
+    <ExternalIncludePath>$(SolutionDir)\vcpkg_installed\x64-windows\include;$(SolutionDir)include;$(ExternalIncludePath)</ExternalIncludePath>
+    <OutDir>build\</OutDir>
+  </PropertyGroup>
+  <PropertyGroup Label="Vcpkg">
+    <VcpkgEnableManifest>true</VcpkgEnableManifest>
+  </PropertyGroup>
+  <PropertyGroup Label="Vcpkg" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <VcpkgInstalledDir>$(SolutionDir)vcpkg_installed\</VcpkgInstalledDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -191,6 +167,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -205,6 +182,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -215,15 +193,16 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;GLFW_INCLUDE_NONE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
-      <SubSystem>Windows</SubSystem>
+      <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>glfw3.lib;opengl32.lib;assimp-vc143-mt.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <EntryPointSymbol>mainCRTStartup</EntryPointSymbol>
     </Link>
   </ItemDefinitionGroup>
@@ -235,6 +214,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

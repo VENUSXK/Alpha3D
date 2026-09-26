@@ -1,26 +1,26 @@
 #include "core/Viewport.h"
 #include "core/Log.h"
 
-void Viewport::Init(int w, int h) {
+void Viewport::Init(float w, float h) {
     width = w; height = h;
 
-    // 1. ´´½¨ÑÕÉ«ÌùÍ¼¡ª¡ªäÖÈ¾½á¹û×îÖÕ´æÔÚÕâÀï
+    // 1. åˆ›å»ºé¢œè‰²è´´å›¾â€”â€”æ¸²æŸ“ç»“æœæœ€ç»ˆå­˜åœ¨è¿™é‡Œ
 
     glGenTextures(1, &colorTexture);
     glBindTexture(GL_TEXTURE_2D, colorTexture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, (GLsizei)width, (GLsizei)height, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-    // 2. ´´½¨Éî¶ÈÌùÍ¼¡ª¡ª3D ³¡¾°±ØĞëÓĞÉî¶È²âÊÔ£¬·ñÔòÇ°ºóÕÚµ²»á´íÂÒ
+    // 2. åˆ›å»ºæ·±åº¦è´´å›¾â€”â€”3D åœºæ™¯å¿…é¡»æœ‰æ·±åº¦æµ‹è¯•ï¼Œå¦åˆ™å‰åé®æŒ¡ä¼šé”™ä¹±
     glGenTextures(1, &depthTexture);
     glBindTexture(GL_TEXTURE_2D, depthTexture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, width, height, 0,
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, (GLsizei)width, (GLsizei)height, 0,
         GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
 
-    // 3. ´´½¨ FBO ±¾Éí£¬°ÑÉÏÃæÁ½ÕÅÌùÍ¼¹ÒÉÏÈ¥
+    // 3. åˆ›å»º FBO æœ¬èº«ï¼ŒæŠŠä¸Šé¢ä¸¤å¼ è´´å›¾æŒ‚ä¸Šå»
     glGenFramebuffers(1, &fboID);
     glBindFramebuffer(GL_FRAMEBUFFER, fboID);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colorTexture, 0);
@@ -34,7 +34,7 @@ void Viewport::Init(int w, int h) {
 void Viewport::BeginRender() {
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glBindFramebuffer(GL_FRAMEBUFFER, fboID);
-    glViewport(0, 0, width, height);
+    glViewport(0, 0, (int)width, (int)height);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
@@ -43,21 +43,21 @@ void Viewport::EndRender() {
 }
 
 // Viewport.cpp
-void Viewport::Resize(int newWidth, int newHeight)
+void Viewport::Resize(float newWidth, float newHeight)
 {
-    if (newWidth == width && newHeight == height) return;   // Ã»±ä»¯¾Í²»ÓÃÖØ½¨
-    if (newWidth <= 0 || newHeight <= 0) return;             // ·ÀÖ¹Ãæ°åËõµ½ 0 Ê±³öÎÊÌâ
+    if (newWidth == width && newHeight == height) return;   // æ²¡å˜åŒ–å°±ä¸ç”¨é‡å»º
+    if (newWidth <= 0 || newHeight <= 0) return;             // é˜²æ­¢é¢æ¿ç¼©åˆ° 0 æ—¶å‡ºé—®é¢˜
 
     this->width = newWidth;
     this->height = newHeight;
 
-    // ÖØĞÂÉèÖÃÑÕÉ«ÌùÍ¼´óĞ¡
+    // é‡æ–°è®¾ç½®é¢œè‰²è´´å›¾å¤§å°
     glBindTexture(GL_TEXTURE_2D, colorTexture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, (GLsizei)width, (GLsizei)height, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
 
-    // ÖØĞÂÉèÖÃÉî¶ÈÌùÍ¼´óĞ¡
+    // é‡æ–°è®¾ç½®æ·±åº¦è´´å›¾å¤§å°
     glBindTexture(GL_TEXTURE_2D, depthTexture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, width, height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, (GLsizei)width, (GLsizei)height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
 
-    // ²»ĞèÒªÖØĞÂ´´½¨ FBO ±¾Éí£¬ÌùÍ¼³ß´ç±äÁËÖ®ºó FBO ×Ô¶¯ÊÊÅäĞÂ³ß´ç
+    // ä¸éœ€è¦é‡æ–°åˆ›å»º FBO æœ¬èº«ï¼Œè´´å›¾å°ºå¯¸å˜äº†ä¹‹å FBO è‡ªåŠ¨é€‚é…æ–°å°ºå¯¸
 }

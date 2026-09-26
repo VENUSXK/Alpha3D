@@ -1,16 +1,10 @@
 #pragma once
-
-#include <string>
+#include <cstddef>
 #include <vector>
-
 #include <glm/glm.hpp>
 
-#include <assimp/Importer.hpp>
-#include <assimp/scene.h>
-#include <assimp/postprocess.h>
-
-#include "renderer/Shader.h"
 #include "renderer/Texture.h"
+
 
 struct Vertex {
     glm::vec3 Position;
@@ -19,17 +13,19 @@ struct Vertex {
     glm::vec3 Tangent;
 };
 
+class Shader;
+
 class Mesh {
 public:
-    Mesh(const float* vertices, unsigned int count); // for simple cube
+    Mesh(const float* vertices, std::size_t size);
     Mesh(std::vector<Vertex> vertices, std::vector<unsigned int> indices, std::vector<Texture> textures); // for assimp
     ~Mesh();
 
-    // ½ûÓÃ¿½±´
+    // ç¦ç”¨æ‹·è´
     Mesh(const Mesh&) = delete;
     Mesh& operator=(const Mesh&) = delete;
 
-    // ÔÊĞíÒÆ¶¯
+    // å…è®¸ç§»åŠ¨
     Mesh(Mesh&& other) noexcept
         : vao(other.vao), vbo(other.vbo), ebo(other.ebo),
         vertices(std::move(other.vertices)),
@@ -37,7 +33,7 @@ public:
         textures(std::move(other.textures)),
         vertex_count(other.vertex_count)
     {
-        other.vao = 0;  // ÖÃ0£¬Îö¹¹Ê±²»»áÉ¾³ı
+        other.vao = 0;  // ç½®0ï¼Œææ„æ—¶ä¸ä¼šåˆ é™¤
         other.vbo = 0;
         other.ebo = 0;
     }
@@ -51,7 +47,8 @@ private:
     std::vector<Vertex> vertices;
     std::vector<unsigned int> indices;
     std::vector<Texture> textures;
-    unsigned int vao, vbo, ebo;
-    unsigned int light_vao, light_vbo;
-    unsigned int vertex_count;
+    unsigned int vao = 0;
+    unsigned int vbo = 0;
+    unsigned int ebo = 0;
+    std::size_t vertex_count = 0;
 };

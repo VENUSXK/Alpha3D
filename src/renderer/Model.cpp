@@ -1,6 +1,97 @@
-#pragma once
-
 #include "renderer/Model.h"
+
+#include <cmath>
+
+#include <assimp/Importer.hpp>
+#include <assimp/scene.h>
+#include <assimp/postprocess.h>
+
+namespace {
+    const float CubeVertices[] = {
+        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
+         0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 1.0f,
+         0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 0.0f,
+         0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
+        -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f, 0.0f,
+         0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  1.0f, 0.0f,
+         0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  1.0f, 1.0f,
+         0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  1.0f, 1.0f,
+        -0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f, 0.0f,
+        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
+        -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
+        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
+         0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
+         0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
+         0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
+         0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
+         0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
+         0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 1.0f,
+         0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 1.0f,
+         0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 0.0f,
+         0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 0.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 1.0f,
+        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f,
+         0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 0.0f,
+         0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 1.0f,
+         0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 0.0f,
+        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f,
+        -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 0.0f
+    };
+}
+
+Model Model::Cube() {
+    Model model;
+    model.mMeshes.emplace_back(CubeVertices, sizeof(CubeVertices));
+    return model;
+}
+
+Model Model::Sphere(int sectorCount, int stackCount, float radius) {
+    std::vector<Vertex> vertices;
+    std::vector<unsigned int> indices;
+    constexpr float pi = 3.14159265358979323846f;
+    const float sectorStep = 2.0f * pi / sectorCount;
+    const float stackStep = pi / stackCount;
+
+    for (int stack = 0; stack <= stackCount; ++stack) {
+        const float stackAngle = pi / 2.0f - stack * stackStep;
+        const float xy = radius * std::cos(stackAngle);
+        const float z = radius * std::sin(stackAngle);
+
+        for (int sector = 0; sector <= sectorCount; ++sector) {
+            const float sectorAngle = sector * sectorStep;
+            const float x = xy * std::cos(sectorAngle);
+            const float y = xy * std::sin(sectorAngle);
+            vertices.push_back({
+                { x, y, z },
+                { x / radius, y / radius, z / radius },
+                { static_cast<float>(sector) / sectorCount, static_cast<float>(stack) / stackCount },
+                { 0.0f, 0.0f, 0.0f }
+            });
+        }
+    }
+
+    const int stride = sectorCount + 1;
+    for (int stack = 0; stack < stackCount; ++stack) {
+        for (int sector = 0; sector < sectorCount; ++sector) {
+            const unsigned int first = stack * stride + sector;
+            const unsigned int next = first + stride;
+            if (stack != 0) indices.insert(indices.end(), { first, next, first + 1 });
+            if (stack != stackCount - 1) indices.insert(indices.end(), { first + 1, next, next + 1 });
+        }
+    }
+
+    Model model;
+    model.mMeshes.emplace_back(std::move(vertices), std::move(indices), std::vector<Texture>{});
+    return model;
+}
 
 void Model::Draw(Shader& shader)
 {
@@ -28,7 +119,7 @@ std::vector<Texture> Model::loadMaterialTextures(aiMaterial* mat, aiTextureType 
 
         if (!skip)
         {
-            LOG_INFO(Model, "Loading model texture '{}'", std::string(tex_name.C_Str()));
+            LOG_INFO("Loading model texture '{}'", std::string(tex_name.C_Str()));
 
             Texture texture(tex_name, this->directory, typeName);
 
@@ -36,7 +127,7 @@ std::vector<Texture> Model::loadMaterialTextures(aiMaterial* mat, aiTextureType 
             textures_loaded.push_back(texture);
         }
         else {
-            LOG_INFO(Model, "Texture exists '{}'", std::string(tex_name.C_Str()));
+            LOG_INFO("Texture exists '{}'", std::string(tex_name.C_Str()));
 
         }
     }
@@ -57,7 +148,7 @@ Mesh Model::processMesh(aiMesh* mesh, const aiScene* scene)
             if (count > 0) {
                 aiString path;
                 material->GetTexture((aiTextureType)t, 0, &path);
-                LOG_INFO(Model, "Consists texture type: {}: {}", t, path.C_Str());
+                LOG_INFO("Consists texture type: {}: {}", t, path.C_Str());
             }
         }
     }
@@ -150,18 +241,19 @@ void Model::processNode(aiNode* node, const aiScene* scene)
     }
 }
 
-void Model::loadModel(std::string path)
+Model::Model(const char* modelPath)
 {
+    const std::string path = modelPath;
     Assimp::Importer import;
     const aiScene* scene = import.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
 
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
     {
-        LOG_ERROR(Model, import.GetErrorString());
+        LOG_ERROR(import.GetErrorString());
         return;
     }
     else {
-        LOG_INFO(Model, "Model loaded: {}, meshes: {}", path, scene->mNumMeshes);
+        LOG_INFO("Model loaded: {}, meshes: {}", path, scene->mNumMeshes);
     }
     directory = path.substr(0, path.find_last_of('/'));
 

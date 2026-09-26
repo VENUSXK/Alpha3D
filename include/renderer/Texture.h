@@ -1,17 +1,13 @@
 // renderer/Texture.h
 #pragma once
+#include <array>
+
 #include <string>
-#include <glad/glad.h>
-#include <iostream>
+#include <assimp/types.h>
 
-
-#include <assimp/Importer.hpp>
-#include <assimp/scene.h>
-#include <assimp/postprocess.h>
-
+#include "core/opengl.h"
 #include "core/Log.h"
 
-// Texture.h 或 Mesh.h
 class DefaultTextures {
 public:
     static unsigned int Black() {
@@ -23,7 +19,6 @@ public:
         return id;
     }
     static unsigned int Normal() {
-        // 法线贴图默认值是朝上 (0.5, 0.5, 1.0)
         static unsigned int id = Create({ 128, 128, 255, 255 });
         return id;
     }
@@ -43,16 +38,17 @@ class Texture {
 public:
     Texture(const std::string&);
     Texture(aiString, const std::string&, const std::string&);
-    Texture(unsigned int id, const std::string& type) // 新增
+    Texture(unsigned int id, const std::string& type) // 鏂板
         : mId(id), mType(type) {
     }
 
     ~Texture();
 
-    unsigned int GetId() { return mId; }
     unsigned int GetId() const { return mId; }
-    aiString           GetTexName()const { return mName; }
-    const std::string& GetType()   const { return mType; }
+    aiString GetTexName() const { return mName; }
+    const std::string& GetType() const { return mType; }
+    static bool Load2D(unsigned int& texture, const std::string& path);
+    static bool Load3D(unsigned int& texture, unsigned int size, const std::string& pathTemplate);
     unsigned int LoadHDR(const std::string& path);
     void Bind(unsigned int slot = 0);
 private:

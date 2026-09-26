@@ -1,21 +1,26 @@
-﻿// Camera.cpp
+// Camera.cpp
+#include "core/opengl.h"
+
+#include <GLFW/glfw3.h>
+
 #include "renderer/Camera.h"
-#include "core/WindowContext.h"
 #include "core/Log.h"
 
 #include "core/Time.h"
 
-void mouse_callback(GLFWwindow* glfw_window, double xpos, double ypos)
+#include "core/Window.h"
+
+void mouse_callback(GLFWwindow* glfw_window, float xpos, float ypos)
 {
-    WindowContext* context = static_cast<WindowContext*>(glfwGetWindowUserPointer(glfw_window));
-    if (!context) {
-        LOG_ERROR(Camera, "No Window Context Get from GLFW UserPointer!");
+    Window* window = static_cast<Window*>(glfwGetWindowUserPointer(glfw_window));
+    if (!window) {
+        LOG_ERROR("No Window pointer from GLFW UserPointer!");
         return;
     }
 
-    Camera* camera = context->camera;
-    if (!context->camera) {
-        LOG_ERROR(Camera, "No Camera Pointer in Window Context!");
+    Camera* camera = window->GetCamera();
+    if (!camera) {
+        LOG_ERROR("No Camera pointer in Window!");
         return;
     }
 
@@ -55,13 +60,13 @@ void Camera::ProcessMouseMovement(float xpos, float ypos) {
     this->direction = glm::normalize(front);
 }
 
-void Camera::ProcessEditorInput(GLFWwindow* glfwWindow, bool isViewportHovered) {
+void Camera::ProcessEditorInput(Window* window, bool isViewportHovered) {
     if (isViewportHovered || GetMoving())
     {
         double xpos, ypos;
-        glfwGetCursorPos(glfwWindow, &xpos, &ypos);
+        glfwGetCursorPos(window->GetGLFWWindow(), &xpos, &ypos);
         ProcessMouseMovement((float)xpos, (float)ypos);
-        ProcessInput(glfwWindow);
+        ProcessInput(window);
     }
     else
     {
@@ -86,8 +91,9 @@ void Camera::SetDirection(const glm::vec3& newDirection)
     RebuildView();
 }
 
-void Camera::ProcessInput(GLFWwindow* glfw_window)
+void Camera::ProcessInput(Window* window)
 {
+    GLFWwindow * glfw_window = window->GetGLFWWindow();
     if (glfwGetMouseButton(glfw_window, GLFW_MOUSE_BUTTON_2) == GLFW_PRESS) {
         moving = true;
 
@@ -126,7 +132,6 @@ void Camera::ProcessInput(GLFWwindow* glfw_window)
 
     this->direction = glm::normalize(direction);
 
-    // 加这两行
     glm::vec3 world_up = glm::vec3(0.0f, 1.0f, 0.0f);
     this->right = glm::normalize(glm::cross(this->direction, world_up));
     this->up = glm::normalize(glm::cross(this->right, this->direction));
@@ -152,7 +157,7 @@ void Camera::RebuildView()
 Camera::Camera(float fov, Window& window, glm::vec3 position, glm::vec3 target) {
 
     float aspectRatio = window.GetAspectRatio();
-    float window_width = window.GetWidth(), window_height = window.GetHeight();
+    const float window_width = static_cast<float>(window.GetWidth()), window_height = static_cast<float>(window.GetHeight());
 
     //glfwSetCursorPosCallback(window.GetGLFWWindow(), mouse_callback);
 

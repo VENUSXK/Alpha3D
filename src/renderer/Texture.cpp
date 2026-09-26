@@ -3,10 +3,9 @@
 
 #include "renderer/Texture.h"
 
+#include <cstdio>
 
-#define STB_IMAGE_IMPLEMENTATION
-
-#include "stb/stb_image.h"
+#include "stb_image.h"
 
 
 unsigned int TextureFromFile(const char* texName, const std::string& dirPath)
@@ -40,12 +39,12 @@ unsigned int TextureFromFile(const char* texName, const std::string& dirPath)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-        LOG_INFO(Texture, "Texture loaded at path {}", targetPath);
+        LOG_INFO("Texture loaded at path {}", targetPath);
         stbi_image_free(data);
     }
     else
     {
-        LOG_ERROR(Texture, "Texture {} failed to load at path {}", texName, targetPath);
+        LOG_ERROR("Texture {} failed to load at path {}", texName, targetPath);
         stbi_image_free(data);
     }
 
@@ -74,10 +73,10 @@ Texture::Texture(const std::string& path) {
         GLenum format = (nrChannels == 4) ? GL_RGBA : GL_RGB;
         glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
         glGenerateMipmap(GL_TEXTURE_2D);
-        LOG_INFO(Texture, "Texture loaded: {}", path);
+        LOG_INFO("Texture loaded: {}", path);
     }
     else {
-        LOG_ERROR(Texture, "Failed to load texture: {}", path);
+        LOG_ERROR("Failed to load texture: {}", path);
     }
     stbi_image_free(data);
 }
@@ -89,4 +88,63 @@ Texture::~Texture() {
 void Texture::Bind(unsigned int slot) {
     glActiveTexture(GL_TEXTURE0 + slot);
     glBindTexture(GL_TEXTURE_2D, mId);
+}
+
+bool Texture::Load2D(unsigned int& texture, const std::string& path) {
+    int width = 0;
+    int height = 0;
+    int channels = 0;
+    unsigned char* data = stbi_load(path.c_str(), &width, &height, &channels, STBI_rgb_alpha);
+    if (!data) {
+        LOG_ERROR("Failed to load texture: {}", path);
+        return false;
+    }
+
+    if (!texture) glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+    glGenerateMipmap(GL_TEXTURE_2D);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    stbi_image_free(data);
+    return true;
+}
+
+bool Texture::Load3D(unsigned int& texture, unsigned int size, const std::string& pathTemplate) {
+    if (!texture) glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_3D, texture);
+    glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA8, size, size, size, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+
+    for (unsigned int layer = 0; layer < size; ++layer) {
+        char path[512] = {};
+        std::snprintf(path, sizeof(path), pathTemplate.c_str(), layer);
+
+        int width = 0;
+        int height = 0;
+        int channels = 0;
+        unsigned char* data = stbi_load(path, &width, &height, &channels, STBI_rgb_alpha);
+        if (!data || width != static_cast<int>(size) || height != static_cast<int>(size)) {
+            LOG_ERROR("Failed to load 3D texture layer: {}", path);
+            stbi_image_free(data);
+            glBindTexture(GL_TEXTURE_3D, 0);
+            glDeleteTextures(1, &texture);
+            texture = 0;
+            return false;
+        }
+
+        glTexSubImage3D(GL_TEXTURE_3D, 0, 0, 0, layer, size, size, 1, GL_RGBA, GL_UNSIGNED_BYTE, data);
+        stbi_image_free(data);
+    }
+
+    glGenerateMipmap(GL_TEXTURE_3D);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_REPEAT);
+    glBindTexture(GL_TEXTURE_3D, 0);
+    return true;
 }

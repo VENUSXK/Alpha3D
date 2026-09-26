@@ -3,10 +3,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include <glfw/glfw3.h>
-#include "core/Window.h"
-
-
+class Window;
 
 class Camera {
 public:
@@ -39,9 +36,9 @@ public:
     glm::mat4 GetView() { return view; }
     glm::mat4 GetProjection() { return projection; }
     
-    void ProcessInput(GLFWwindow * window);
+    void ProcessInput(Window* window);
     void ProcessMouseMovement(float xpos, float ypos);
-    void ProcessEditorInput(GLFWwindow* glfwWindow, bool isViewportHovered);
+    void ProcessEditorInput(Window* window, bool isViewportHovered);
 
     void RebuildView();
 

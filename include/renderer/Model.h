@@ -2,29 +2,30 @@
 #include <vector>
 #include <string>
 
-#include "renderer/Texture.h"
-
-#include <assimp/Importer.hpp>
-#include <assimp/scene.h>
-#include <assimp/postprocess.h>
-
-#include "renderer/Shader.h"
 #include "renderer/Mesh.h"
-#include "core/Log.h"
+
+struct aiMaterial;
+struct aiNode;
+struct aiScene;
+struct aiMesh;
+
+class Shader;
+
+enum aiTextureType : int;
 
 class Model
 {
 public:
-    Model(const char* path)
-    {
-        loadModel(path);
-    }
+    Model() = default;
+    Model(const char* path);
+    static Model Cube();
+    static Model Sphere(int sectorCount = 36, int stackCount = 18, float radius = 0.5f);
+
     void Draw(Shader& shader);
 private:
     std::vector<Mesh> mMeshes;
     std::string directory;
 
-    void loadModel(std::string path);
     void processNode(aiNode* node, const aiScene* scene);
     Mesh processMesh(aiMesh* mesh, const aiScene* scene);
 

@@ -1,43 +1,55 @@
 #pragma once
+#ifndef GLFW_INCLUDE_NONE
+#define GLFW_INCLUDE_NONE
+#endif
 #include <glfw/glfw3.h>
 #include <string>
 #include <functional>
 
-#include "core/WindowContext.h"
+class Camera;
 
 class Window {
 public:
-    void Init(int width, int height, int x, int y, const std::string& title);
+    void Init(int width, int height, int monitorCenterX, int monitorCenterY, bool hasMonitorCenter, const std::string& title);
     ~Window();
 
     void Update();
     void Destroy();
 
-    float GetWidth();
-    float GetHeight();
+    int GetWidth() const;
+    int GetHeight() const;
 
     bool ShouldClose();
     void ProcessKeyboardInput();
-    float GetAspectRatio();
+    float GetAspectRatio() const;
 
     GLFWwindow* GetGLFWWindow();
-
-    WindowContext& GetWindowContext();
-    // void SetWindowContext();
+    Camera* GetCamera() const { return camera; }
+    void SetCamera(Camera* camera) { this->camera = camera; }
 
     void SetResizeCallback(std::function<void(int, int)> callback);
     void SetScaleCallback(std::function<void(float)> callback);
 
-    float GetDeltaTime() { return delta_time; }
+    float GetDeltaTime() const { return delta_time; }
+    GLFWmonitor* GetCurrentMonitor() const { return currentMonitor; }
+    float GetCurrentScale() const { return currentScale; }
+    int GetCurrentMonitorIndex() const { return currentMonitorIndex; }
+
 private:
+    static GLFWmonitor* FindMonitorContainingPoint(int x, int y, int* monitorIndex = nullptr);
+    void UpdateCurrentMonitor();
+    static void framebuffer_size_callback(GLFWwindow* window, int width, int height);
+
     float delta_time = 0.0f;
     double last_time = 0.0f;
 
-    static void framebuffer_size_callback(GLFWwindow* window, int width, int height);
-    GLFWwindow* glfw_window;
-    int width, height;
+    GLFWwindow* glfw_window = nullptr;
+    int width = 0, height = 0;
     std::string title;
-    WindowContext context;
+    Camera* camera = nullptr;
+
+    GLFWmonitor* currentMonitor = nullptr;
+    int currentMonitorIndex = -1;
     float currentScale = 1.0f;
 
     std::function<void(int, int)> ResizeCallback;
