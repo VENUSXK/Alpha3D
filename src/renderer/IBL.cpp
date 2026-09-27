@@ -10,29 +10,6 @@
 #include "renderer/Model.h"
 #include "renderer/Shader.h"
 
-void IBL::Scan(const std::string& directory) {
-    paths.clear();
-    names.clear();
-
-    for (const auto& entry : std::filesystem::directory_iterator(directory)) {
-        const std::string extension = entry.path().extension().string();
-        if (extension != ".hdr" && extension != ".exr") continue;
-
-        paths.push_back(entry.path().string());
-        names.push_back(entry.path().stem().string());
-    }
-
-    if (selected >= static_cast<int>(paths.size())) selected = 0;
-    changed = false;
-}
-
-bool IBL::Select(int index) {
-    if (index < 0 || index >= static_cast<int>(paths.size()) || index == selected) return false;
-    selected = index;
-    changed = true;
-    return true;
-}
-
 static void RenderQuad_IBL()
 {
     static unsigned int quadVAO = 0, quadVBO = 0;

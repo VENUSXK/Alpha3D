@@ -78,11 +78,6 @@ Editor::~Editor()
 }
 
 
-void Editor::ShowToast(const std::string& message, float duration) {
-	toast_message = message;
-	toast_timer = duration;
-	toast_duration = duration;
-}
 
 void Editor::BeginFrame(Viewport& viewport)
 {
@@ -224,50 +219,6 @@ void Editor::BeginDetails(GameObject& game_object) {
 
 void Editor::EndFrame()
 {
-	if (toast_timer > 0.0f) {
-		toast_timer -= ImGui::GetIO().DeltaTime;
-		if (toast_timer < 0.0f) {
-			toast_timer = 0.0f;
-		}
-
-		float alpha = toast_timer < toast_fade_duration ? toast_timer / toast_fade_duration : 1.0f;
-		alpha = alpha < 0.0f ? 0.0f : (alpha > 1.0f ? 1.0f : alpha);
-
-		ImGuiViewport* viewport = ImGui::GetMainViewport();
-		ImVec2 work_pos = viewport->WorkPos;
-
-		ImVec2 window_pos(
-			work_pos.x + 20.0f,
-			work_pos.y + 40.0f
-		);
-
-		ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always, ImVec2(0.0f, 0.0f));
-		ImGui::SetNextWindowBgAlpha(0.85f * alpha);
-
-		ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-
-		ImGuiWindowFlags flags =
-			ImGuiWindowFlags_NoDecoration |
-			ImGuiWindowFlags_AlwaysAutoResize |
-			ImGuiWindowFlags_NoSavedSettings |
-			ImGuiWindowFlags_NoFocusOnAppearing |
-			ImGuiWindowFlags_NoNav |
-			ImGuiWindowFlags_NoMove |
-			ImGuiWindowFlags_NoInputs;
-
-		if (ImGui::Begin("PhotoToast", nullptr, flags)) {
-			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 1.0f, alpha));
-			ImGui::TextUnformatted(toast_message.c_str());
-			ImGui::PopStyleColor();
-		}
-		ImGui::End();
-		ImGui::PopStyleVar();
-
-		if (toast_timer < 0.0f) {
-			toast_timer = 0.0f;
-		}
-	}
-
 	ImGui::Render();
 	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
@@ -409,25 +360,6 @@ bool Editor::WantCaptureKeyboard() const
     return ImGui::GetIO().WantCaptureKeyboard;
 }
 
-
-void Editor::BeginEnvironment(IBL& ibl) {
-
-	ImGui::Begin("Environment");
-
-	ImGui::Text("Cube Maps:");
-
-	const auto& names = ibl.GetNames();
-
-	// 把 vector<string> 转成 ImGui 需要的格式
-	std::vector<const char*> items;
-	for (const auto& n : names) items.push_back(n.c_str());
-
-	int selected = ibl.GetSelected();
-	if (ImGui::Combo("HDRI", &selected, items.data(), (int)items.size()))
-		ibl.Select(selected);
-
-	ImGui::End();
-}
 
 void Editor::BeginSkyAtmosphere(SkyAtmosphere& sky) {
 	SkyAtmosphereParams& p = sky.parameters;

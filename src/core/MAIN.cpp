@@ -10,9 +10,6 @@
 
 #include "core/opengl.h"
 
-
-
-
 #include "core/Window.h"
 #include "core/Viewport.h"
 #include "core/Config.h"
@@ -87,8 +84,7 @@ int main()
             A3_PROFILE_PASS(profiler, "Editor UI");
             editor.BeginCamera(camera);
             scene.RenderEditor(editor);
-            if (editor.HasPerformanceAffectingEdit())
-                profiler.ResetFrameHistory();
+            if (editor.HasPerformanceAffectingEdit()) profiler.ResetFrameHistory();
             editor.BeginPerformance(profiler);
             editor.EndFrame();
         }

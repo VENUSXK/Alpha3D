@@ -24,7 +24,6 @@ public:
 
     void BeginFrame(Viewport& viewport);
     void EndFrame();
-    void BeginEnvironment(IBL& ibl);
     void BeginDetails(GameObject& game_object);
     void BeginHierarchy(Scene& scene);
     std::string GetFont() { return font_name; }
@@ -36,20 +35,12 @@ public:
     void BeginVolumetricCloud(VolumetricCloud& cloud);
     void BeginPerformance(RenderProfiler& profiler);
     bool HasPerformanceAffectingEdit() const;
-    void ShowToast(const std::string& message, float duration = 1.5f);
-
 private:
     float currentScale = 1.0f;
 
-    float mainMenuBarHeight = 10.0f;
     std::string font_name;
     ImFont* font_small;
 
     ImVec2 viewportSize;
     bool isViewportHovered = false;
-    static ImGuiTextBuffer log;
-    std::string toast_message;
-    float toast_timer = 0.0f;
-    float toast_duration = 0.0f;
-    float toast_fade_duration = 0.25f;
 };
