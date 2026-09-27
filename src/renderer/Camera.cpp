@@ -74,6 +74,12 @@ void Camera::ProcessEditorInput(Window* window, bool isViewportHovered) {
     }
 }
 
+// newView: glm::lookAt(xx)
+void Camera::SetDirection(const glm::mat4 newView)
+{
+    view = newView;
+}
+
 void Camera::SetDirection(const glm::vec3& newDirection)
 {
     const float directionLength = glm::length(newDirection);
@@ -190,6 +196,10 @@ void Camera::RebuildProjection() {
             m_Near, m_Far);
     else
         projection = glm::perspective(glm::radians(m_Fov), m_AspectRatio, m_Near, m_Far);
+}
+
+void Camera::SetProjection(glm::mat4 newProjection) {
+    projection = newProjection;
 }
 
 void Camera::SetProjection(float fov, float aspectRatio) {

@@ -1,5 +1,8 @@
 #version 330 core
 #define PI 3.14159265358979323846
+
+uniform mat3 environmentRotation;
+
 // material
 
 // light
@@ -106,13 +109,18 @@ void main()
     vec3 kS_ibl = fresnelSchlickRoughness(NdotV, F0, roughness);
     vec3 kD = 1.0 - kS_ibl;
     kD *= 1.0 - metallic;
-    vec3 irradiance = texture(irradianceMap, normal).rgb;
-    vec3 diffuse    = irradiance * albedo;
 
     vec3 reflect_dir = reflect(-view_dir, normal);   
 
     const float MAX_REFLECTION_LOD = 4.0;
-    vec3 prefilteredColor = textureLod(prefilterMap, reflect_dir, roughness * MAX_REFLECTION_LOD).rgb;  
+
+    vec3 environmentNormal = normalize(environmentRotation * normal);
+    vec3 environmentReflect = normalize(environmentRotation * reflect_dir);
+
+    vec3 irradiance = texture(irradianceMap, environmentNormal).rgb;
+    vec3 prefilteredColor = textureLod(prefilterMap, environmentReflect, roughness * MAX_REFLECTION_LOD).rgb;
+
+    vec3 diffuse    = irradiance * albedo;
 
     vec2 envBRDF = textureLod(brdfLUT, vec2(NdotV, roughness), 0.0).rg;
     vec3 specular = prefilteredColor * (kS_ibl * envBRDF.x + envBRDF.y);

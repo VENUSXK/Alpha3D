@@ -55,9 +55,10 @@ void SkyAtmosphere::Load(Window&) {
     parametersDirty = false;
 }
 
-void SkyAtmosphere::Render(Camera& camera, RenderProfiler& profiler) {
+void SkyAtmosphere::Render(Camera& camera, RenderProfiler& profiler, bool outputLinear) {
     A3_PROFILE_PASS(profiler, "Atmosphere");
     shader_sky_atmosphere.use();
+    shader_sky_atmosphere.setBool("outputLinear", outputLinear);
     shader_sky_atmosphere.setMat4("invProjection", glm::inverse(camera.GetProjection()));
     shader_sky_atmosphere.setMat4("invView", glm::inverse(camera.GetView()));
     shader_sky_atmosphere.setVec3("cameraPos", camera.GetPosition());

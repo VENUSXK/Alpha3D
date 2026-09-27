@@ -33,9 +33,11 @@ public:
     glm::vec3 GetPosition() { return position; }
     glm::vec3 GetDirection() const { return direction; }
     void SetDirection(const glm::vec3& direction);
+    void SetDirection(const glm::mat4 direction);
     glm::mat4 GetView() { return view; }
     glm::mat4 GetProjection() { return projection; }
-    
+    void SetProjection(glm::mat4 newProjection);
+
     void ProcessInput(Window* window);
     void ProcessMouseMovement(float xpos, float ypos);
     void ProcessEditorInput(Window* window, bool isViewportHovered);

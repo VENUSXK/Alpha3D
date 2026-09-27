@@ -6,6 +6,8 @@
 #include <utility>
 #include <vector>
 
+#include "renderer/IBL.h"
+
 class Camera;
 class Editor;
 class GameObject;
@@ -22,9 +24,13 @@ public:
     ~Scene();
 
     void Load(Window& window);
+    void RenderSkyLight(Camera& camera, RenderProfiler& profiler, bool outputLinear);
     void Render(Camera& camera, RenderProfiler& profiler);
     void Unload();
-    void RenderEditor(Editor& editor);
+    void RenderEditor(Editor& editor, Camera& camera);
+
+
+    const IBL& GetIBL() const { return ibl; }
 
     const std::string& GetName() const { return name; }
     SkyAtmosphere& GetAtmosphere();
@@ -46,6 +52,7 @@ private:
 
     uint32_t selected_id = 0;
     uint32_t next_id = 1;
+    IBL ibl;
 
     std::string name = "landscape";
 };

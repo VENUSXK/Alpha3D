@@ -4,6 +4,8 @@ out vec4 FragColor;
 
 in vec2 screenUV;
 
+uniform bool outputLinear;
+
 uniform vec3 cameraPos;
 uniform mat4 invProjection;
 uniform mat4 invView;
@@ -322,7 +324,7 @@ vec4 SingleScattering() {
 
     vec3 color = integrateAtmosphereScattering(
         atmosphereCamera, viewDirection, sceneDepth, sceneColor, sunDirection);
-    color = ApplyToneMapping(color);
+    if (!outputLinear) color = ApplyToneMapping(color);
     return vec4(color, 1.0);
 }
 

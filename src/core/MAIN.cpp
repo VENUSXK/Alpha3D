@@ -83,7 +83,7 @@ int main()
         {
             A3_PROFILE_PASS(profiler, "Editor UI");
             editor.BeginCamera(camera);
-            scene.RenderEditor(editor);
+            scene.RenderEditor(editor, camera);
             if (editor.HasPerformanceAffectingEdit()) profiler.ResetFrameHistory();
             editor.BeginPerformance(profiler);
             editor.EndFrame();

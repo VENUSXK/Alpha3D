@@ -7,8 +7,16 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #include "stb_image.h"
+#include "renderer/Camera.h"
 #include "renderer/Model.h"
 #include "renderer/Shader.h"
+#include "utils/RenderProfiler.h"
+#include "scene/Scene.h"
+
+#include <algorithm>
+#include <vector>
+
+#include "stb_image_write.h"
 
 static void RenderQuad_IBL()
 {
@@ -36,21 +44,15 @@ static void RenderQuad_IBL()
     glBindVertexArray(0);
 }
 
-void IBL::Load(
-    const std::string& hdr_path,
-    Model& cubeModel,
-    Shader& to_cubemap_shader,
-    Shader& irradiance_shader,
-    Shader& prefilter_shader,
-    Shader& brdf_integrate_shader)
+void IBL::Render(Scene& scene, Camera& camera, RenderProfiler& profiler)
 {
-    // ------------------ capture FBO init ------------------
+    GLsizei captureSize = 1024;
+
+    // STAGE 1  CAPTURING SCENE TO CUBE_MAP
+    // initing FBOs
     glGenFramebuffers(1, &captureFBO);
     glGenRenderbuffers(1, &captureRBO);
-    glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
-    glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, 2048, 2048);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, captureRBO);
+    
 
     glm::mat4 captureProjection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
     glm::mat4 captureViews[] = {
@@ -62,67 +64,77 @@ void IBL::Load(
         glm::lookAt(glm::vec3(0), glm::vec3(0, 0,-1), glm::vec3(0,-1, 0)),
     };
 
-
-    // ------------------ HDR texture ------------------
-
-    stbi_set_flip_vertically_on_load(true);
-    int w, h, nrComp;
-    float* data = stbi_loadf(hdr_path.c_str(), &w, &h, &nrComp, 0);
-    stbi_set_flip_vertically_on_load(false);
-
-    unsigned int hdrTexture = 0;
-    if (data) {
-        glGenTextures(1, &hdrTexture);
-        glBindTexture(GL_TEXTURE_2D, hdrTexture);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, w, h, 0, GL_RGB, GL_FLOAT, data);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        stbi_image_free(data);
-    }
-    else {
-        std::cerr << "IBLEnvironment: Failed to load HDR: " << hdr_path << std::endl;
-    }
-
-
-    // ------------------ Env cubemap ------------------
-
+    // generating cubemap
     glGenTextures(1, &envCubemap);
     glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
-    for (unsigned int i = 0; i < 6; ++i)
-        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F, 2048, 2048, 0, GL_RGB, GL_FLOAT, nullptr);
+    for (unsigned int i = 0; i < 6; ++i) {
+        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F, captureSize, captureSize, 0, GL_RGB, GL_FLOAT, nullptr);
+    }
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-    to_cubemap_shader.use();
-    to_cubemap_shader.setInt("equirectangularMap", 0);
-    to_cubemap_shader.setMat4("projection", captureProjection);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, hdrTexture);
+    // saving previous view settings
+    Camera captureCamera = camera;
+    captureCamera.SetPosition(glm::vec3(0.0f));
+    captureCamera.SetProjection(captureProjection);
+    GLint previousDrawFBO = 0;
+    GLint previousReadFBO = 0;
+    GLint previousViewport[4];
 
-    glViewport(0, 0, 2048, 2048);
+    glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &previousDrawFBO);
+    glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &previousReadFBO);
+    glGetIntegerv(GL_VIEWPORT, previousViewport);
+
+    // binding frame buffer object and render buffer object
     glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
-    for (unsigned int i = 0; i < 6; ++i) {
-        to_cubemap_shader.setMat4("view", captureViews[i]);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, envCubemap, 0);
+    glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, captureSize, captureSize);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, captureRBO);
+
+    // rendering frame to cube box
+    bool captureComplete = true;
+    glViewport(0, 0, captureSize, captureSize);
+    for (unsigned int face = 0; face < 6; ++face) {
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, envCubemap, 0);
+        glDrawBuffer(GL_COLOR_ATTACHMENT0);
+
+        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+            std::cerr << "IBL capture framebuffer incomplete\n";
+            captureComplete = false;
+            break;
+        }
+
+        captureCamera.SetDirection(captureViews[face]);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        cubeModel.Draw(to_cubemap_shader);
+        scene.RenderSkyLight(captureCamera, profiler, true);
     }
-    glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
-    glDeleteTextures(1, &hdrTexture); // 不再需要
+
+    // generarte mip maps
+    if (captureComplete) {
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
+        glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    }
+
+    // recovering viewports and FBO
+    if (!captureComplete) return;
+
+    glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
+    glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, captureSize, captureSize);
 
 
-
-    // ------------------ Irradiance map ------------------
-
+    // STAGE 2  GENERATING IRRADIANCE MAPS
+    // generating irradiance map
     glGenTextures(1, &irradianceMap);
     glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap);
-    for (unsigned int i = 0; i < 6; ++i)
+    for (unsigned int i = 0; i < 6; ++i) {
         glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F, 32, 32, 0, GL_RGB, GL_FLOAT, nullptr);
+    }
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
@@ -186,8 +198,6 @@ void IBL::Load(
 
 
     // ------------------ BRDF LUT ------------------
-    
-
     glGenTextures(1, &brdfLUTTexture);
     glBindTexture(GL_TEXTURE_2D, brdfLUTTexture);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RG16F, 512, 512, 0, GL_RG, GL_FLOAT, 0);
@@ -204,7 +214,11 @@ void IBL::Load(
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     RenderQuad_IBL();
 
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    // recovering FBO
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, previousDrawFBO);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, previousReadFBO);
+    glViewport(previousViewport[0], previousViewport[1], previousViewport[2], previousViewport[3]);
+
 }
 
 void IBL::Bind(Shader& shader) const

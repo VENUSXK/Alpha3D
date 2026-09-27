@@ -11,6 +11,8 @@
 #include "scene/GameObject.h"
 #include "utils/RenderProfiler.h"
 
+#include "renderer/IBL.h"
+
 Scene::Scene() = default;
 
 Scene::~Scene() = default;
@@ -32,8 +34,18 @@ void Scene::Load(Window& window) {
     volumetric_cloud->Load(window, *this);
 }
 
-void Scene::Render(Camera& camera, RenderProfiler& profiler) {
-    A3_PROFILE_PASS(profiler, "Scene");
+void Scene::Render(Camera& camera, RenderProfiler& profiler)
+{
+    RenderSkyLight(camera, profiler, false);
+
+    if (ibl.envCubemap == 0){
+        ibl.Render(*this, camera, profiler);
+    }
+}
+
+
+void Scene::RenderSkyLight(Camera& camera, RenderProfiler& profiler, bool outputLinear) {
+    A3_PROFILE_PASS(profiler, "SkyLight");
 
     const GLboolean depthTestEnabled = glIsEnabled(GL_DEPTH_TEST);
     const GLboolean blendEnabled = glIsEnabled(GL_BLEND);
@@ -43,7 +55,7 @@ void Scene::Render(Camera& camera, RenderProfiler& profiler) {
     glDisable(GL_DEPTH_TEST);
     glDepthMask(GL_FALSE);
     glDisable(GL_BLEND);
-    atmosphere->Render(camera, profiler);
+    atmosphere->Render(camera, profiler, outputLinear);
 
     glDepthMask(depthWriteEnabled);
     if (depthTestEnabled) glEnable(GL_DEPTH_TEST); else glDisable(GL_DEPTH_TEST);
@@ -54,6 +66,7 @@ void Scene::Render(Camera& camera, RenderProfiler& profiler) {
 
     if (blendEnabled) glEnable(GL_BLEND); else glDisable(GL_BLEND);
 }
+
 
 void Scene::Unload() {
     if (volumetric_cloud) volumetric_cloud->Unload();
@@ -71,9 +84,11 @@ GameObject* Scene::GetSelected() {
     return nullptr;
 }
 
-void Scene::RenderEditor(Editor& editor) {
+void Scene::RenderEditor(Editor& editor, Camera& camera) {
+    editor.RenderMaterialPreview(this->GetIBL(), camera);
     editor.BeginSkyAtmosphere(*atmosphere);
     editor.BeginVolumetricCloud(*volumetric_cloud);
+    editor.BeginIBL();
     editor.BeginHierarchy(*this);
     if (GameObject* selected = GetSelected()) editor.BeginDetails(*selected);
 }

@@ -15,6 +15,24 @@ class SkyAtmosphere;
 class VolumetricCloud;
 class RenderProfiler;
 
+#include "renderer/Model.h"
+#include "renderer/Shader.h"
+
+struct MaterialPreview {
+    unsigned int FBO = 0;
+    unsigned int texture = 0;
+    unsigned int RBO = 0;
+
+    GLsizei width = 320;
+    GLsizei height = 320;
+
+    float metallic = 1.0f;
+    float roughness = 0.2f;
+
+    Model sphereModel = Model::Sphere();
+
+    Shader shader{ "shaders/pbr/pbr_ibl_test.vert", "shaders/pbr/pbr_ibl_test.frag" };
+};
 
 class Editor {
 public:
@@ -33,9 +51,16 @@ public:
     void BeginCamera(Camera& camera);
     void BeginSkyAtmosphere(SkyAtmosphere& sky);
     void BeginVolumetricCloud(VolumetricCloud& cloud);
+    void BeginIBL();
     void BeginPerformance(RenderProfiler& profiler);
     bool HasPerformanceAffectingEdit() const;
+
+    void RenderMaterialPreview(const IBL& ibl, Camera& camera);
+    void ShowMaterialPreview();
 private:
+
+    void InitMaterialPreview();
+
     float currentScale = 1.0f;
 
     std::string font_name;
@@ -43,4 +68,5 @@ private:
 
     ImVec2 viewportSize;
     bool isViewportHovered = false;
+    MaterialPreview materialPreview;
 };

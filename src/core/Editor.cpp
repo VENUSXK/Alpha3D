@@ -29,6 +29,225 @@
 
 #include "utils/Transform.h"
 
+#include "renderer/IBL.h"
+#include <glm/gtc/matrix_transform.hpp>
+
+
+
+void Editor::ShowMaterialPreview()
+{
+	const auto& preview = materialPreview;
+
+	if (!preview.texture) return;
+
+	// 必须紧接在场景的 ImGui::Image() 后调用。
+	const ImVec2 viewMin = ImGui::GetItemRectMin();
+	const ImVec2 viewMax = ImGui::GetItemRectMax();
+
+	const float padding = 12.0f;
+	const float availableWidth = viewMax.x - viewMin.x;
+	const float availableHeight = viewMax.y - viewMin.y;
+
+	if (availableWidth <= 0.0f || availableHeight <= 0.0f) return;
+
+	const float scale = std::min(1.0f, std::min(availableWidth / float(preview.width), availableHeight / float(preview.height)));
+	const ImVec2 size(float(preview.width) * scale, float(preview.height) * scale);
+
+	const ImVec2 bottomRight(viewMax.x, viewMax.y);
+	const ImVec2 topLeft(bottomRight.x - size.x, bottomRight.y - size.y);
+
+	ImDrawList* drawList = ImGui::GetWindowDrawList();
+
+	drawList->PushClipRect(viewMin, viewMax, true);
+	drawList->AddImage((ImTextureID)(intptr_t)preview.texture, topLeft, bottomRight, ImVec2(0, 1), ImVec2(1, 0));
+	drawList->PopClipRect();
+}
+
+
+
+
+void Editor::InitMaterialPreview()
+{
+	auto& preview = materialPreview;
+
+	if (preview.FBO || preview.width <= 0 || preview.height <= 0) return;
+
+	GLint previousDrawFBO = 0;
+	GLint previousReadFBO = 0;
+	GLint previousTexture = 0;
+	GLint previousRenderbuffer = 0;
+
+	glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &previousDrawFBO);
+	glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &previousReadFBO);
+	glGetIntegerv(GL_TEXTURE_BINDING_2D, &previousTexture);
+	glGetIntegerv(GL_RENDERBUFFER_BINDING, &previousRenderbuffer);
+
+	glGenFramebuffers(1, &preview.FBO);
+	glGenTextures(1, &preview.texture);
+	glGenRenderbuffers(1, &preview.RBO);
+
+	glBindTexture(GL_TEXTURE_2D, preview.texture);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, preview.width, preview.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+	glBindRenderbuffer(GL_RENDERBUFFER, preview.RBO);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, preview.width, preview.height);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, preview.FBO);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, preview.texture, 0);
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, preview.RBO);
+	glDrawBuffer(GL_COLOR_ATTACHMENT0);
+	glReadBuffer(GL_COLOR_ATTACHMENT0);
+
+	const bool complete = glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
+
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, previousDrawFBO);
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, previousReadFBO);
+	glBindTexture(GL_TEXTURE_2D, previousTexture);
+	glBindRenderbuffer(GL_RENDERBUFFER, previousRenderbuffer);
+
+	if (!complete)
+	{
+		LOG_ERROR("Material preview framebuffer incomplete");
+
+		glDeleteFramebuffers(1, &preview.FBO);
+		glDeleteTextures(1, &preview.texture);
+		glDeleteRenderbuffers(1, &preview.RBO);
+
+		preview.FBO = preview.texture = preview.RBO = 0;
+	}
+}
+
+void Editor::RenderMaterialPreview(const IBL& ibl, Camera& camera)
+{
+	auto& preview = materialPreview;
+
+	if (!ibl.irradianceMap || !ibl.prefilterMap || !ibl.brdfLUTTexture) return;
+
+	if (!preview.FBO) InitMaterialPreview();
+	if (!preview.FBO || preview.width <= 0 || preview.height <= 0) return;
+
+	GLint previousDrawFBO = 0;
+	GLint previousReadFBO = 0;
+	GLint previousViewport[4];
+	GLint previousDepthFunc = 0;
+	GLint previousProgram = 0;
+	GLint previousVAO = 0;
+	GLint previousActiveTexture = 0;
+	GLint previousRenderbuffer = 0;
+	GLint previousCubeTextures[3];
+	GLint previous2DTextures[3];
+
+	GLfloat previousClearColor[4];
+	GLdouble previousClearDepth = 1.0;
+	GLboolean previousDepthMask = GL_TRUE;
+	GLboolean previousColorMask[4];
+
+	const GLboolean previousDepthTest = glIsEnabled(GL_DEPTH_TEST);
+	const GLboolean previousBlend = glIsEnabled(GL_BLEND);
+	const GLboolean previousCull = glIsEnabled(GL_CULL_FACE);
+	const GLboolean previousScissor = glIsEnabled(GL_SCISSOR_TEST);
+	const GLboolean previousSRGB = glIsEnabled(GL_FRAMEBUFFER_SRGB);
+
+	glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &previousDrawFBO);
+	glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &previousReadFBO);
+	glGetIntegerv(GL_VIEWPORT, previousViewport);
+	glGetIntegerv(GL_DEPTH_FUNC, &previousDepthFunc);
+	glGetIntegerv(GL_CURRENT_PROGRAM, &previousProgram);
+	glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &previousVAO);
+	glGetIntegerv(GL_ACTIVE_TEXTURE, &previousActiveTexture);
+	glGetIntegerv(GL_RENDERBUFFER_BINDING, &previousRenderbuffer);
+
+	glGetFloatv(GL_COLOR_CLEAR_VALUE, previousClearColor);
+	glGetDoublev(GL_DEPTH_CLEAR_VALUE, &previousClearDepth);
+	glGetBooleanv(GL_DEPTH_WRITEMASK, &previousDepthMask);
+	glGetBooleanv(GL_COLOR_WRITEMASK, previousColorMask);
+
+	for (int i = 0; i < 3; ++i)
+	{
+		glActiveTexture(GL_TEXTURE0 + i);
+		glGetIntegerv(GL_TEXTURE_BINDING_CUBE_MAP, &previousCubeTextures[i]);
+		glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous2DTextures[i]);
+	}
+
+	glBindFramebuffer(GL_FRAMEBUFFER, preview.FBO);
+	glViewport(0, 0, preview.width, preview.height);
+
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LESS);
+	glDepthMask(GL_TRUE);
+	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+
+	glDisable(GL_BLEND);
+	glDisable(GL_CULL_FACE);
+	glDisable(GL_SCISSOR_TEST);
+	glDisable(GL_FRAMEBUFFER_SRGB);
+
+	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	const glm::vec3 cameraPosition(0.0f, 0.0f, 10.0f);
+	const glm::mat4 projection = glm::perspective(glm::radians(15.0f), float(preview.width) / float(preview.height), 0.1f, 20.0f);
+
+	ibl.Bind(preview.shader);
+
+	const glm::mat4 view = glm::lookAt(cameraPosition, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	preview.shader.setMat4("view", view);
+	preview.shader.setMat4("projection", projection);
+	preview.shader.setVec3("viewPos", cameraPosition);
+	
+	const glm::vec3 direction = glm::normalize(camera.GetDirection());
+	const glm::vec3 right = glm::normalize(glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), direction));
+	const glm::vec3 up = glm::normalize(glm::cross(direction, right));
+
+	preview.shader.setMat3("environmentRotation", glm::mat3(right, up, direction));
+
+	preview.shader.setVec3("baseColor", glm::vec3(0.5f));
+
+	preview.shader.setVec3("lightPos", glm::vec3(0.0f, 3.0f, 4.0f));
+	preview.shader.setVec3("light.intensity", glm::vec3(0.0f));
+	
+	const glm::mat4 model = glm::scale(glm::mat4(1.0f), glm::vec3(2.0f));
+
+	preview.shader.setMat4("model", model);
+	preview.shader.setMat3("normalMatrix", glm::transpose(glm::inverse(glm::mat3(model))));
+	preview.shader.setFloat("metallic", preview.metallic);
+	preview.shader.setFloat("roughness", preview.roughness);
+
+	preview.sphereModel.Draw(preview.shader);
+
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, previousDrawFBO);
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, previousReadFBO);
+	glViewport(previousViewport[0], previousViewport[1], previousViewport[2], previousViewport[3]);
+
+	glClearColor(previousClearColor[0], previousClearColor[1], previousClearColor[2], previousClearColor[3]);
+	glClearDepth(previousClearDepth);
+	glDepthFunc(previousDepthFunc);
+	glDepthMask(previousDepthMask);
+	glColorMask(previousColorMask[0], previousColorMask[1], previousColorMask[2], previousColorMask[3]);
+
+	if (!previousDepthTest) glDisable(GL_DEPTH_TEST);
+	if (previousBlend) glEnable(GL_BLEND);
+	if (previousCull) glEnable(GL_CULL_FACE);
+	if (previousScissor) glEnable(GL_SCISSOR_TEST);
+	if (previousSRGB) glEnable(GL_FRAMEBUFFER_SRGB);
+
+	for (int i = 0; i < 3; ++i)
+	{
+		glActiveTexture(GL_TEXTURE0 + i);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, previousCubeTextures[i]);
+		glBindTexture(GL_TEXTURE_2D, previous2DTextures[i]);
+	}
+
+	glActiveTexture(previousActiveTexture);
+	glUseProgram(previousProgram);
+	glBindVertexArray(previousVAO);
+	glBindRenderbuffer(GL_RENDERBUFFER, previousRenderbuffer);
+}
+
 void Editor::Init(Window* window)
 {
     IMGUI_CHECKVERSION();
@@ -99,6 +318,7 @@ void Editor::BeginFrame(Viewport& viewport)
 	ImGui::Image((void*)(intptr_t)viewport.GetColorTexture(), ImGui::GetContentRegionAvail(), ImVec2(0, 1), ImVec2(1, 0));
 	this->isViewportHovered = ImGui::IsItemHovered();
 
+	ShowMaterialPreview();
 
 	ImGui::End();
 
@@ -140,6 +360,20 @@ void Editor::BeginCamera(Camera & camera) {
 	}
 	ImGui::InputFloat("Speed", &camera.moveSpeed, 0.5f, 1.0f, "%.1f");
 
+
+	ImGui::End();
+}
+
+void Editor::BeginIBL() {
+	if (!ImGui::Begin("IBL")) {
+		ImGui::End();
+		return;
+	}
+
+	if (ImGui::CollapsingHeader("Test Sphere Configuration", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::SliderFloat("Metallic", &materialPreview.metallic, 0.0f, 1.0f, "%.2f");
+		ImGui::SliderFloat("Roughness", &materialPreview.roughness, 0.01f, 1.0f, "%.2f");
+	}
 
 	ImGui::End();
 }

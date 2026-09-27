@@ -60,7 +60,7 @@ struct SkyAtmosphereParams {
 class SkyAtmosphere {
 public:
     void Load(Window& window);
-    void Render(Camera& camera, RenderProfiler& profiler);
+    void Render(Camera& camera, RenderProfiler& profiler, bool outputLinear);
     void Unload();
     void RenderEditor(Editor& editor);
     void MarkParametersDirty() { parametersDirty = true; }
