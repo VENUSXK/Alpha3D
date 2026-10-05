@@ -67,7 +67,7 @@ private:
     float m_Fov         = 90.0f;
     float m_AspectRatio = 1.0f;
     float m_Near        = 0.1f;
-    float m_Far         = 100.0f;
+    float m_Far = 3000.0f;
     bool  m_IsOrtho     = false;
     float m_OrthoSize   = 5.0f;
 

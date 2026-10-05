@@ -5,35 +5,6 @@
 #include "renderer/Texture.h"
 #include "renderer/Shader.h"
 
-Mesh::Mesh(const float* vertices, std::size_t size) {
-	vertex_count = size / (8 * sizeof(float)); // 每个顶点5个float (xyz + uv)
-
-	// VAO
-	glGenVertexArrays(1, &vao);
-	glBindVertexArray(vao);
-
-	// VBO
-	glGenBuffers(1, &vbo);
-	glBindBuffer(GL_ARRAY_BUFFER, vbo);
-	glBufferData(GL_ARRAY_BUFFER, size, vertices, GL_STATIC_DRAW);
-
-	// position (location = 0)
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-	glEnableVertexAttribArray(0);
-
-	// normal (location = 1)
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-	glEnableVertexAttribArray(1);
-
-	// texcoord (location = 2)
-	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
-	glEnableVertexAttribArray(2);
-
-	glBindVertexArray(0);
-
-	LOG_INFO("Mesh created, {} vertices.", vertex_count);
-}
-
 Mesh::Mesh(std::vector<Vertex> vertices, std::vector<unsigned int> indices, std::vector<Texture> textures)
 {
 	this->vertices = vertices;
@@ -50,8 +21,7 @@ Mesh::Mesh(std::vector<Vertex> vertices, std::vector<unsigned int> indices, std:
 	glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), &vertices[0], GL_STATIC_DRAW);
 
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int),
-		&indices[0], GL_STATIC_DRAW);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), &indices[0], GL_STATIC_DRAW);
 
 	// position
 	glEnableVertexAttribArray(0);
@@ -81,8 +51,7 @@ void Mesh::Bind() {
 
 void Mesh::FillMissingTextures() {
 	auto has = [&](const std::string& type) {
-		for (auto& t : textures)
-			if (t.GetType() == type) return true;
+		for (auto& t : textures) if (t.GetType() == type) return true;
 		return false;
 	};
 

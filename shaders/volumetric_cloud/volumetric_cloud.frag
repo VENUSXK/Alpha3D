@@ -232,7 +232,7 @@ vec3 evaluateNubisLighting(vec3 position, float stepSize) {
 
 vec3 GetViewDir() {
     vec2 screenNDC = screenUV * 2.0 - 1.0;
-    vec4 viewPos = invProjection * vec4(screenNDC, 1.0, 1.0);
+    vec4 viewPos = invProjection * vec4(screenNDC, 0.0, 1.0);
     vec3 viewDir = normalize(viewPos.xyz / viewPos.w);
     vec3 worldDir = normalize((invView * vec4(viewDir, 0.0)).xyz);
     return worldDir;

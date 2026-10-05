@@ -6,50 +6,53 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 
-namespace {
-    const float CubeVertices[] = {
-        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
-         0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 0.0f,
-         0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
-        -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f, 0.0f,
-         0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  1.0f, 0.0f,
-         0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  1.0f, 1.0f,
-         0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  1.0f, 1.0f,
-        -0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f, 0.0f,
-        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
-        -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
-        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
-         0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
-         0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
-         0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
-         0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
-         0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 1.0f,
-         0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 0.0f,
-         0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 0.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 0.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 1.0f,
-        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f,
-         0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 0.0f,
-         0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 1.0f,
-         0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 0.0f,
-        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f,
-        -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 0.0f
-    };
-}
+#include <algorithm>
+#include <stdexcept>
+#include <utility>
+#include "stb_image.h"
 
-Model Model::Cube() {
+Model Model::Cube()
+{
+    const glm::vec3 normals[] = {
+        { 1.0f, 0.0f, 0.0f }, { -1.0f, 0.0f, 0.0f },
+        { 0.0f, 1.0f, 0.0f }, { 0.0f, -1.0f, 0.0f },
+        { 0.0f, 0.0f, 1.0f }, { 0.0f, 0.0f, -1.0f }
+    };
+
+    const glm::vec2 uvs[] = {
+        { 0.0f, 0.0f }, { 1.0f, 0.0f }, { 1.0f, 1.0f }, { 0.0f, 1.0f }
+    };
+
+    std::vector<Vertex> vertices;
+    std::vector<unsigned int> indices;
+    std::vector<Texture> textures;
+
+    vertices.reserve(24);
+    indices.reserve(36);
+
+    for (const glm::vec3& normal : normals) {
+        glm::vec3 reference = normal.y != 0.0f ? glm::vec3(0.0f, 0.0f, 1.0f) : glm::vec3(0.0f, 1.0f, 0.0f);
+        glm::vec3 tangent = glm::normalize(glm::cross(reference, normal));
+        glm::vec3 bitangent = glm::cross(normal, tangent);
+
+        unsigned int base = static_cast<unsigned int>(vertices.size());
+
+        for (const glm::vec2& uv : uvs) {
+            Vertex vertex{};
+            vertex.Position = normal * 0.5f + tangent * (uv.x - 0.5f) + bitangent * (uv.y - 0.5f);
+            vertex.Normal = normal;
+            vertex.TexCoords = uv;
+            vertex.Tangent = tangent;
+
+            vertices.push_back(vertex);
+        }
+
+        indices.insert(indices.end(), { base, base + 1, base + 2, base, base + 2, base + 3 });
+    }
+
     Model model;
-    model.mMeshes.emplace_back(CubeVertices, sizeof(CubeVertices));
+    model.mMeshes.emplace_back(std::move(vertices), std::move(indices), std::move(textures));
+
     return model;
 }
 
@@ -90,6 +93,85 @@ Model Model::Sphere(int sectorCount, int stackCount, float radius) {
 
     Model model;
     model.mMeshes.emplace_back(std::move(vertices), std::move(indices), std::vector<Texture>{});
+    return model;
+}
+
+Model Model::Terrain(const char* heightTexPath, float width, float depth, float heightScale, std::vector<Texture> textures)
+{
+    if (width <= 0.0f || depth <= 0.0f || heightScale < 0.0f)
+        throw std::runtime_error("Invalid terrain dimensions.");
+
+    int columns = 0, rows = 0, channels = 0;
+    stbi_us* heights = stbi_load_16(heightTexPath, &columns, &rows, &channels, 1);
+
+    if (!heights || columns < 2 || rows < 2) {
+        stbi_image_free(heights);
+        throw std::runtime_error("Failed to load terrain heightmap.");
+    }
+
+    std::vector<Vertex> vertices(static_cast<size_t>(columns) * rows);
+    std::vector<unsigned int> indices;
+    indices.reserve(static_cast<size_t>(columns - 1) * (rows - 1) * 6);
+
+    // Generate one vertex per pixel, with the Y-axis representing height.
+    size_t centerIndex = static_cast<size_t>(rows / 2) * columns + columns / 2;
+    float centerHeight = heights[centerIndex] / 65535.0f * heightScale;
+    for (int z = 0; z < rows; ++z) {
+        for (int x = 0; x < columns; ++x) {
+            size_t index = static_cast<size_t>(z) * columns + x;
+            float u = static_cast<float>(x) / (columns - 1);
+            float v = static_cast<float>(z) / (rows - 1);
+            float height = heights[index] / 65535.0f * heightScale - centerHeight - 2.0f;
+
+            vertices[index].Position = glm::vec3((u - 0.5f) * width, height, (v - 0.5f) * depth);
+            vertices[index].TexCoords = glm::vec2(u, 1.0f - v);
+            vertices[index].Normal = glm::vec3(0.0f);
+            vertices[index].Tangent = glm::vec3(0.0f);
+        }
+    }
+
+    stbi_image_free(heights);
+
+    // 每四个相邻顶点组成两个朝上的三角形。
+    for (int z = 0; z < rows - 1; ++z) {
+        for (int x = 0; x < columns - 1; ++x) {
+            unsigned int a = static_cast<unsigned int>(static_cast<size_t>(z) * columns + x);
+            unsigned int b = a + 1, c = a + columns, d = c + 1;
+
+            indices.insert(indices.end(), { a, c, b, b, c, d });
+        }
+    }
+
+    // 累加相邻三角形的法线，得到平滑地形。
+    for (size_t i = 0; i < indices.size(); i += 3) {
+        Vertex& a = vertices[indices[i]];
+        Vertex& b = vertices[indices[i + 1]];
+        Vertex& c = vertices[indices[i + 2]];
+
+        glm::vec3 normal = glm::cross(b.Position - a.Position, c.Position - a.Position);
+        a.Normal += normal;
+        b.Normal += normal;
+        c.Normal += normal;
+    }
+
+    // 根据横向地形变化计算切线，并使其垂直于法线。
+    for (int z = 0; z < rows; ++z) {
+        for (int x = 0; x < columns; ++x) {
+            size_t row = static_cast<size_t>(z) * columns;
+            Vertex& vertex = vertices[row + x];
+
+            int left = std::max(x - 1, 0), right = std::min(x + 1, columns - 1);
+            glm::vec3 tangent = vertices[row + right].Position - vertices[row + left].Position;
+
+            vertex.Normal = glm::normalize(vertex.Normal);
+            vertex.Tangent = glm::normalize(tangent - vertex.Normal * glm::dot(vertex.Normal, tangent));
+        }
+    }
+
+    Model model;
+    model.mMeshes.emplace_back(std::move(vertices), std::move(indices), std::move(textures));
+    model.mMeshes.back().FillMissingTextures();
+
     return model;
 }
 

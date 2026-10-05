@@ -32,6 +32,12 @@ void Scene::Load(Window& window) {
 
     atmosphere->Load(window);
     volumetric_cloud->Load(window, *this);
+
+    terrain = std::make_unique<Model>(Model::Terrain("assets/textures/height-map.png", 10000.0f, 10000.0f, 3000.0f, {}));
+
+    auto& object = AddGameObject("Terrain", terrain.get(), &shader);
+    object.SetPosition(glm::vec3(0.0f, -100.0f, 0.0f));
+    object.SetScale(1.0f);
 }
 
 void Scene::Render(Camera& camera, RenderProfiler& profiler)
@@ -40,6 +46,26 @@ void Scene::Render(Camera& camera, RenderProfiler& profiler)
 
     if (ibl.envCubemap == 0){
         ibl.Render(*this, camera, profiler);
+    }
+
+    // terrain testing
+
+    ibl.Bind(shader);
+
+    shader.setMat4("view", camera.GetView());
+    shader.setMat4("projection", camera.GetProjection());
+    shader.setVec3("viewPos", camera.GetPosition());
+
+    shader.setVec3("baseColor", glm::vec3(0.35f, 0.45f, 0.2f));
+    shader.setFloat("roughness", 0.8f);
+    shader.setFloat("metallic", 0.0f);
+    shader.setMat3("environmentRotation", glm::mat3(1.0f));
+
+    shader.setVec3("lightPos", glm::vec3(0.0f, 1000.0f, 0.0f));
+    shader.setVec3("light.intensity", glm::vec3(1000000.0f));
+
+    for (const auto& object : game_objects) {
+        object->Draw();
     }
 }
 

@@ -195,7 +195,8 @@ void Camera::RebuildProjection() {
             -m_OrthoSize,                   m_OrthoSize,
             m_Near, m_Far);
     else
-        projection = glm::perspective(glm::radians(m_Fov), m_AspectRatio, m_Near, m_Far);
+        // projection = glm::perspective(glm::radians(m_Fov), m_AspectRatio, m_Near, m_Far);
+        projection = glm::infinitePerspective(glm::radians(m_Fov), m_AspectRatio, m_Near);
 }
 
 void Camera::SetProjection(glm::mat4 newProjection) {

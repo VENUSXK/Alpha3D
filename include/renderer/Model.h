@@ -20,6 +20,7 @@ public:
     Model(const char* path);
     static Model Cube();
     static Model Sphere(int sectorCount = 36, int stackCount = 18, float radius = 0.5f);
+    static Model Terrain(const char* heightTexPath, float width, float depth, float heightScale, std::vector<Texture> textures);
 
     void Draw(Shader& shader);
 private:

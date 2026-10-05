@@ -45,10 +45,13 @@ public:
     const std::vector<std::unique_ptr<GameObject>>& GetGameObjects() const { return game_objects; }
     void Clear();
 
+    Shader shader{ "shaders/pbr/pbr_ibl_test.vert", "shaders/pbr/pbr_ibl_test.frag" };
+
 private:
     std::vector<std::unique_ptr<GameObject>> game_objects;
     std::unique_ptr<SkyAtmosphere> atmosphere;
     std::unique_ptr<VolumetricCloud> volumetric_cloud;
+    std::unique_ptr<Model> terrain;
 
     uint32_t selected_id = 0;
     uint32_t next_id = 1;

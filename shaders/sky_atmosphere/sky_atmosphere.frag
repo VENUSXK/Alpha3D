@@ -50,7 +50,7 @@ uniform sampler2D skyViewLUT;
 
 vec3 GetViewDir() {
     vec2 screenNDC = screenUV * 2.0 - 1.0;
-    vec4 viewPos = invProjection * vec4(screenNDC, 1.0, 1.0);
+    vec4 viewPos = invProjection * vec4(screenNDC, 0.0, 1.0);
     vec3 viewDir = normalize(viewPos.xyz / viewPos.w);
     vec3 worldDir = normalize((invView * vec4(viewDir, 0.0)).xyz);
     return worldDir;
@@ -302,9 +302,8 @@ vec3 ApplyToneMapping(vec3 color)
 
 
 vec4 SingleScattering() {
-
     vec3 viewDirection = GetViewDir();
-    vec3 atmosphereCamera = vec3(cameraPos.x, planetRadius + cameraHeight + cameraPos.y, cameraPos.z);
+    vec3 atmosphereCamera = vec3(cameraPos.x, planetRadius + max(cameraPos.y, 1.0), cameraPos.z);
     vec3 sunDirection = normalize(lightDirection);
 
     vec2 planetHit = RaySphereIntersect(atmosphereCamera, viewDirection, planetRadius);
