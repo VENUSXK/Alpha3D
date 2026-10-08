@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\components\Terrain.cpp" />
     <ClCompile Include="src\core\MAIN.cpp" />
     <ClCompile Include="src\core\Config.cpp" />
     <ClCompile Include="src\core\Editor.cpp" />
@@ -64,12 +65,15 @@
     <None Include="shaders\phong.vert" />
     <None Include="shaders\sky_atmosphere\full_screen.vert" />
     <None Include="shaders\sky_atmosphere\sky_atmosphere.frag" />
+    <None Include="shaders\terrain\terrain.frag" />
+    <None Include="shaders\terrain\terrain.vert" />
     <None Include="shaders\volumetric_cloud\cube.vert" />
     <None Include="shaders\volumetric_cloud\volumetric_cloud.frag" />
     <None Include="shaders\test.frag" />
     <None Include="shaders\test.vert" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="include\components\Terrain.h" />
     <ClInclude Include="include\core\Config.h" />
     <ClInclude Include="include\core\Editor.h" />
     <ClInclude Include="include\core\Log.h" />

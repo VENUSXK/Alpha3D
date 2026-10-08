@@ -3,6 +3,13 @@
 #include "renderer/Shader.h"
 #include "core/time.h"
 
+void GameObject::Draw(Shader& overrideShader) const {
+    if (!visible || !model) return;
+    overrideShader.use();
+    overrideShader.setMat4("model", transform.GetModelMatrix());
+    model->Draw(overrideShader);
+}
+
 GameObject::GameObject(uint32_t id, std::string name, Model* model, Shader* shader)
     : id(id), name(std::move(name)), shader(shader), model(model) {
 }

@@ -22,9 +22,12 @@ public:
 
     IBL(const IBL&) = delete;
     IBL& operator=(const IBL&) = delete;
+
+    void MarkDirty() { dirty = true; }
+    bool IsDirty() const { return dirty; }
 private:
 
- 
+    bool dirty = true;
     Model cubeModel = Model::Cube();
 
     Shader irradiance_shader{ "shaders/pbr/irradiance_convolution.vert", "shaders/pbr/irradiance_convolution.frag" };

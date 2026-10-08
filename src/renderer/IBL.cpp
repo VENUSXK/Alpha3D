@@ -50,8 +50,9 @@ void IBL::Render(Scene& scene, Camera& camera, RenderProfiler& profiler)
 
     // STAGE 1  CAPTURING SCENE TO CUBE_MAP
     // initing FBOs
-    glGenFramebuffers(1, &captureFBO);
-    glGenRenderbuffers(1, &captureRBO);
+    if (!captureFBO) glGenFramebuffers(1, &captureFBO);
+    if (!captureRBO) glGenRenderbuffers(1, &captureRBO);
+
     
 
     glm::mat4 captureProjection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
@@ -65,7 +66,7 @@ void IBL::Render(Scene& scene, Camera& camera, RenderProfiler& profiler)
     };
 
     // generating cubemap
-    glGenTextures(1, &envCubemap);
+    if (!envCubemap) glGenTextures(1, &envCubemap);
     glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
     for (unsigned int i = 0; i < 6; ++i) {
         glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F, captureSize, captureSize, 0, GL_RGB, GL_FLOAT, nullptr);
@@ -121,7 +122,12 @@ void IBL::Render(Scene& scene, Camera& camera, RenderProfiler& profiler)
     }
 
     // recovering viewports and FBO
-    if (!captureComplete) return;
+    if (!captureComplete) {
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, previousDrawFBO);
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, previousReadFBO);
+        glViewport(previousViewport[0], previousViewport[1], previousViewport[2], previousViewport[3]);
+        return;
+    }
 
     glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
     glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
@@ -130,7 +136,7 @@ void IBL::Render(Scene& scene, Camera& camera, RenderProfiler& profiler)
 
     // STAGE 2  GENERATING IRRADIANCE MAPS
     // generating irradiance map
-    glGenTextures(1, &irradianceMap);
+    if (!irradianceMap) glGenTextures(1, &irradianceMap);
     glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap);
     for (unsigned int i = 0; i < 6; ++i) {
         glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F, 32, 32, 0, GL_RGB, GL_FLOAT, nullptr);
@@ -163,7 +169,7 @@ void IBL::Render(Scene& scene, Camera& camera, RenderProfiler& profiler)
     const int prefilter_resolution = 1024;
     const int maxMipLevels = 5;
 
-    glGenTextures(1, &prefilterMap);
+    if (!prefilterMap) glGenTextures(1, &prefilterMap);
     glBindTexture(GL_TEXTURE_CUBE_MAP, prefilterMap);
     for (unsigned int i = 0; i < 6; ++i)
         glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F, prefilter_resolution, prefilter_resolution, 0, GL_RGB, GL_FLOAT, nullptr);
@@ -198,7 +204,7 @@ void IBL::Render(Scene& scene, Camera& camera, RenderProfiler& profiler)
 
 
     // ------------------ BRDF LUT ------------------
-    glGenTextures(1, &brdfLUTTexture);
+    if (!brdfLUTTexture) glGenTextures(1, &brdfLUTTexture);
     glBindTexture(GL_TEXTURE_2D, brdfLUTTexture);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RG16F, 512, 512, 0, GL_RG, GL_FLOAT, 0);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -219,6 +225,7 @@ void IBL::Render(Scene& scene, Camera& camera, RenderProfiler& profiler)
     glBindFramebuffer(GL_READ_FRAMEBUFFER, previousReadFBO);
     glViewport(previousViewport[0], previousViewport[1], previousViewport[2], previousViewport[3]);
 
+    dirty = false;
 }
 
 void IBL::Bind(Shader& shader) const

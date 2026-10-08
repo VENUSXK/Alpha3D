@@ -123,6 +123,9 @@
     <ClCompile Include="src\components\SkyAtmosphere.cpp">
       <Filter>Source\Components</Filter>
     </ClCompile>
+    <ClCompile Include="src\components\Terrain.cpp">
+      <Filter>Source\Components</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\test.vert">
@@ -209,6 +212,12 @@
     <None Include="shaders\volumetric_cloud\cube.vert">
       <Filter>Shader\Volumetric_Cloud</Filter>
     </None>
+    <None Include="shaders\terrain\terrain.frag">
+      <Filter>Shader</Filter>
+    </None>
+    <None Include="shaders\terrain\terrain.vert">
+      <Filter>Shader</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\scene\Scene.h">
@@ -270,6 +279,9 @@
     </ClInclude>
     <ClInclude Include="include\core\opengl.h">
       <Filter>Headers\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="include\components\Terrain.h">
+      <Filter>Headers\Components</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

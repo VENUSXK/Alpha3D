@@ -127,6 +127,7 @@ void Camera::ProcessInput(Window* window)
         }
         glfwSetInputMode(glfw_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
+        position.y = glm::max(position.y, minHeight);
         RebuildView();
     }
     else {
@@ -160,7 +161,7 @@ void Camera::RebuildView()
     view = rotationView * translation;
 }
 
-Camera::Camera(float fov, Window& window, glm::vec3 position, glm::vec3 target) {
+Camera::Camera(float fov, Window& window, glm::vec3 position, glm::vec3 target, float minHeight) {
 
     float aspectRatio = window.GetAspectRatio();
     const float window_width = static_cast<float>(window.GetWidth()), window_height = static_cast<float>(window.GetHeight());
@@ -171,7 +172,8 @@ Camera::Camera(float fov, Window& window, glm::vec3 position, glm::vec3 target) 
     m_AspectRatio = aspectRatio;
 
     this->position = position;
-    glm::vec3 front = glm::normalize(target - this->position);
+    this->minHeight = minHeight;
+    glm::vec3 front = glm::normalize(target);
     this->direction = front;
     this->yaw = glm::degrees(atan2(front.z, front.x));
     this->pitch = glm::degrees(asin(front.y));

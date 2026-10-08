@@ -2,6 +2,8 @@
 
 #include "components/SkyAtmosphere.h"
 #include "components/VolumetricCloud.h"
+#include "components/Terrain.h"
+
 #include "core/Editor.h"
 #include "core/opengl.h"
 #include "core/Window.h"
@@ -29,42 +31,89 @@ void Scene::Load(Window& window) {
 
     if (!atmosphere) atmosphere = std::make_unique<SkyAtmosphere>();
     if (!volumetric_cloud) volumetric_cloud = std::make_unique<VolumetricCloud>();
+    if (!terrain) terrain = std::make_unique<Terrain>();
 
     atmosphere->Load(window);
     volumetric_cloud->Load(window, *this);
+    terrain->Load(*this);
 
-    terrain = std::make_unique<Model>(Model::Terrain("assets/textures/height-map.png", 10000.0f, 10000.0f, 3000.0f, {}));
+    // shadow
+    glGenTextures(1, &shadowTexture);
+    glBindTexture(GL_TEXTURE_2D, shadowTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, shadowSize, shadowSize, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-    auto& object = AddGameObject("Terrain", terrain.get(), &shader);
-    object.SetPosition(glm::vec3(0.0f, -100.0f, 0.0f));
-    object.SetScale(1.0f);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    glGenFramebuffers(1, &shadowFramebuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, shadowFramebuffer);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, shadowTexture, 0);
+    glDrawBuffer(GL_NONE);
+    glReadBuffer(GL_NONE);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-void Scene::Render(Camera& camera, RenderProfiler& profiler)
-{
-    RenderSkyLight(camera, profiler, false);
+void Scene::Render(Camera& camera, RenderProfiler& profiler) {
 
-    if (ibl.envCubemap == 0){
-        ibl.Render(*this, camera, profiler);
-    }
+    glm::vec3 sunDirection = glm::normalize(atmosphere->parameters.lightDirection);
+    glm::vec3 shadowCenter(camera.GetPosition().x, 0.0f, camera.GetPosition().z);
+    glm::vec3 shadowUp = glm::abs(sunDirection.y) > 0.99f ? glm::vec3(0.0f, 0.0f, 1.0f) : glm::vec3(0.0f, 1.0f, 0.0f);
+    glm::mat4 shadowView = glm::lookAt(shadowCenter + sunDirection * 20000.0f, shadowCenter, shadowUp);
+    glm::mat4 shadowProjection = glm::ortho(-10000.0f, 10000.0f, -10000.0f, 10000.0f, 1.0f, 40000.0f);
+    glm::mat4 shadowViewProjection = shadowProjection * shadowView;
 
-    // terrain testing
+    GLint previousFramebuffer = 0, previousViewport[4] = {}, previousDepthFunction = 0;
+    GLboolean previousDepthWrite = GL_TRUE;
+    glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &previousFramebuffer);
+    glGetIntegerv(GL_VIEWPORT, previousViewport);
+    glGetIntegerv(GL_DEPTH_FUNC, &previousDepthFunction);
+    glGetBooleanv(GL_DEPTH_WRITEMASK, &previousDepthWrite);
 
-    ibl.Bind(shader);
+    GLboolean previousDepthTest = glIsEnabled(GL_DEPTH_TEST);
+    GLboolean previousCull = glIsEnabled(GL_CULL_FACE), previousScissor = glIsEnabled(GL_SCISSOR_TEST);
+    glEnable(GL_DEPTH_TEST);
+    glDepthMask(GL_TRUE);
+    glDepthFunc(GL_LESS);
+    glDisable(GL_CULL_FACE);
 
-    shader.setMat4("view", camera.GetView());
-    shader.setMat4("projection", camera.GetProjection());
-    shader.setVec3("viewPos", camera.GetPosition());
-
-    shader.setVec3("baseColor", glm::vec3(0.35f, 0.45f, 0.2f));
-    shader.setFloat("roughness", 0.8f);
-    shader.setFloat("metallic", 0.0f);
-    shader.setMat3("environmentRotation", glm::mat3(1.0f));
-
-    shader.setVec3("lightPos", glm::vec3(0.0f, 1000.0f, 0.0f));
-    shader.setVec3("light.intensity", glm::vec3(1000000.0f));
+    glDisable(GL_SCISSOR_TEST);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, shadowFramebuffer);
+    glViewport(0, 0, shadowSize, shadowSize);
+    glClear(GL_DEPTH_BUFFER_BIT);
+    shadowShader.use();
+    shadowShader.setMat4("shadowViewProjection", shadowViewProjection);
 
     for (const auto& object : game_objects) {
+        if (object->GetName() == "cloudVolume") continue;
+        object->Draw(shadowShader);
+    }
+
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, previousFramebuffer);
+    glViewport(previousViewport[0], previousViewport[1], previousViewport[2], previousViewport[3]);
+    glDepthFunc(previousDepthFunction);
+    glDepthMask(previousDepthWrite);
+    if (previousDepthTest) glEnable(GL_DEPTH_TEST); else glDisable(GL_DEPTH_TEST);
+
+    if (previousCull) glEnable(GL_CULL_FACE); else glDisable(GL_CULL_FACE);
+    if (previousScissor) glEnable(GL_SCISSOR_TEST); else glDisable(GL_SCISSOR_TEST);
+    atmosphere->shadowTexture = shadowTexture;
+    atmosphere->shadowViewProjection = shadowViewProjection;
+
+
+    RenderSkyLight(camera, profiler, false);
+    if (ibl.IsDirty()) ibl.Render(*this, camera, profiler);
+
+    atmosphere->RenderAerialPerspectiveVolume(camera);
+    terrain->Render(camera, ibl, *atmosphere, profiler);
+
+    for (const auto& object : game_objects) {
+        if (object.get() == terrain->GetGameObject()) continue;
+        if (object->GetName() == "cloudVolume") continue;
         object->Draw();
     }
 }
@@ -95,10 +144,18 @@ void Scene::RenderSkyLight(Camera& camera, RenderProfiler& profiler, bool output
 
 
 void Scene::Unload() {
+    glDeleteTextures(1, &shadowTexture);
+    glDeleteFramebuffers(1, &shadowFramebuffer);
+    shadowTexture = 0;
+    shadowFramebuffer = 0;
+
     if (volumetric_cloud) volumetric_cloud->Unload();
     if (atmosphere) atmosphere->Unload();
     Clear();
+    if (terrain) terrain->Unload();
 }
+
+
 
 GameObject& Scene::AddGameObject(std::string name, Model* model, Shader* shader) {
     game_objects.push_back(std::make_unique<GameObject>(next_id++, std::move(name), model, shader));
@@ -114,8 +171,9 @@ void Scene::RenderEditor(Editor& editor, Camera& camera) {
     editor.RenderMaterialPreview(this->GetIBL(), camera);
     editor.BeginSkyAtmosphere(*atmosphere);
     editor.BeginVolumetricCloud(*volumetric_cloud);
-    editor.BeginIBL();
+    editor.BeginIBL(ibl);
     editor.BeginHierarchy(*this);
+    if (terrain) editor.BeginTerrain(*terrain);
     if (GameObject* selected = GetSelected()) editor.BeginDetails(*selected);
 }
 

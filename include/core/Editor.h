@@ -14,6 +14,7 @@ class IBL;
 class SkyAtmosphere;
 class VolumetricCloud;
 class RenderProfiler;
+class Terrain;
 
 #include "renderer/Model.h"
 #include "renderer/Shader.h"
@@ -36,6 +37,9 @@ struct MaterialPreview {
 
 class Editor {
 public:
+
+    void BeginTerrain(Terrain& terrain);
+
     void Init(Window* window);
     void Update(const Window& window);
     ~Editor();
@@ -49,9 +53,9 @@ public:
     bool WantCaptureKeyboard() const;
     bool IsViewportHovered() { return isViewportHovered; }
     void BeginCamera(Camera& camera);
-    void BeginSkyAtmosphere(SkyAtmosphere& sky);
-    void BeginVolumetricCloud(VolumetricCloud& cloud);
-    void BeginIBL();
+    bool BeginSkyAtmosphere(SkyAtmosphere& sky);
+    bool BeginVolumetricCloud(VolumetricCloud& cloud);
+    void BeginIBL(IBL& ibl);
     void BeginPerformance(RenderProfiler& profiler);
     bool HasPerformanceAffectingEdit() const;
 

@@ -20,6 +20,8 @@ struct PBRTestComponent {
 
 class GameObject {
 public:
+    void Draw(Shader& overrideShader) const;
+
     float rotate_speed_x;
     float rotate_speed_y;
     float rotate_speed_z;
@@ -40,6 +42,7 @@ public:
     void SetPosition(const glm::vec3& pos) { transform.SetPosition(pos); }
     void SetRotation(const glm::vec3& rot) { transform.SetRotation(rot); }
     void SetScale(const float scale) { transform.SetScale(glm::vec3(scale)); }
+    void SetScale(glm::vec3 scale) { transform.SetScale(scale); }
 
     void Translate(const glm::vec3& delta) { transform.Translate(delta); }
     void Rotate(const glm::vec3& deltaDegrees) { transform.Rotate(deltaDegrees); }

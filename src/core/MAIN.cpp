@@ -55,7 +55,7 @@ int main()
         scene.Load(window);
     }
 
-    Camera camera(config.renderer.fov, window, glm::vec3(-0.0f, 0.0f, -0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    Camera camera(config.renderer.fov, window, glm::vec3(-0.0f, 450.0f, -0.0f), glm::vec3(0.0f, 0.0f, 1.0f), 384.0f);
     window.SetCamera(&camera);
 
     window.SetResizeCallback([&](int width, int height) {
@@ -82,10 +82,10 @@ int main()
         // Editor
         {
             A3_PROFILE_PASS(profiler, "Editor UI");
+            editor.BeginPerformance(profiler);
             editor.BeginCamera(camera);
             scene.RenderEditor(editor, camera);
             if (editor.HasPerformanceAffectingEdit()) profiler.ResetFrameHistory();
-            editor.BeginPerformance(profiler);
             editor.EndFrame();
         }
 

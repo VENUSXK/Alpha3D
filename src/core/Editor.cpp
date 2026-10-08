@@ -32,7 +32,7 @@
 #include "renderer/IBL.h"
 #include <glm/gtc/matrix_transform.hpp>
 
-
+#include "components/Terrain.h"
 
 void Editor::ShowMaterialPreview()
 {
@@ -325,6 +325,15 @@ void Editor::BeginFrame(Viewport& viewport)
 	ImGui::PopStyleVar(); // style
 }
 
+void Editor::BeginTerrain(Terrain& terrain) {
+	TerrainParams& parameters = terrain.parameters;
+	ImGui::Begin("Terrain");
+	ImGui::DragFloatRange2("Rock Grayscale Range", &parameters.marbleToDarkThreshold, &parameters.darkToRockyThreshold, 0.001f, 0.05f, 0.95f, "Marble / Dark: %.3f", "Dark / Rocky: %.3f");
+	ImGui::DragFloatRange2("Grayscale Range", &parameters.rockThreshold, &parameters.grassThreshold, 0.001f, 0.001f, 0.999f, "Rock: %.3f", "Grass: %.3f");
+	ImGui::End();
+}
+
+
 void Editor::BeginCamera(Camera & camera) {
 	ImGui::Begin("Camera");
 
@@ -364,14 +373,15 @@ void Editor::BeginCamera(Camera & camera) {
 	ImGui::End();
 }
 
-void Editor::BeginIBL() {
+void Editor::BeginIBL(IBL& ibl) {
 	if (!ImGui::Begin("IBL")) {
 		ImGui::End();
 		return;
 	}
+	if (ImGui::Button("Rebuild IBL")) ibl.MarkDirty();
 
 	if (ImGui::CollapsingHeader("Test Sphere Configuration", ImGuiTreeNodeFlags_DefaultOpen)) {
-		ImGui::SliderFloat("Metallic", &materialPreview.metallic, 0.0f, 1.0f, "%.2f");
+		ImGui::SliderFloat("Metallic", &materialPreview.metallic, 0.01f, 1.0f, "%.2f");
 		ImGui::SliderFloat("Roughness", &materialPreview.roughness, 0.01f, 1.0f, "%.2f");
 	}
 
@@ -595,7 +605,7 @@ bool Editor::WantCaptureKeyboard() const
 }
 
 
-void Editor::BeginSkyAtmosphere(SkyAtmosphere& sky) {
+bool Editor::BeginSkyAtmosphere(SkyAtmosphere& sky) {
 	SkyAtmosphereParams& p = sky.parameters;
 	bool parametersChanged = false;
 	ImGui::Begin("Sky Atmosphere");
@@ -629,7 +639,7 @@ void Editor::BeginSkyAtmosphere(SkyAtmosphere& sky) {
 	}
 
 	if (ImGui::CollapsingHeader("Ray Marching", ImGuiTreeNodeFlags_DefaultOpen)) {
-		parametersChanged |= ImGui::SliderInt("Primary Steps", &p.primarySteps, 1, 128);
+		parametersChanged |= ImGui::SliderInt("Primary Steps", &p.primarySteps, 1, 1024);
 		parametersChanged |= ImGui::SliderInt("Light Steps", &p.lightSteps, 1, 128);
 	}
 	
@@ -638,19 +648,31 @@ void Editor::BeginSkyAtmosphere(SkyAtmosphere& sky) {
 		parametersChanged |= ImGui::Checkbox("Use Sky-View LUT", &p.useSkyViewLUT);
 	}
 
-	if (parametersChanged)
-		sky.MarkParametersDirty();
+	if (ImGui::CollapsingHeader("Aerial Perspective", ImGuiTreeNodeFlags_DefaultOpen)) {
+		float mieCoefficient = p.mieBeta.x * 1000000.0f;
+		if (ImGui::SliderFloat("Mie Coefficient", &mieCoefficient, 0.0f, 200.0f, "%.1f")) {
+			p.mieBeta = glm::vec3(mieCoefficient * 0.000001f);
+			parametersChanged = true;
+		}
+		parametersChanged |= ImGui::SliderFloat("Mie Height", &p.mieHeight, 100.0f, 5000.0f, "%.0f m");
+		parametersChanged |= ImGui::SliderFloat("Mie G", &p.mieG, 0.0f, 0.95f, "%.2f");
+		parametersChanged |= ImGui::DragFloat("Max Distance", &p.aerialPerspectiveMaxDistance, 100.0f, 1000.0f, 100000.0f, "%.0f m");
+	}
+
+	if (parametersChanged) sky.MarkParametersDirty();
 
 	ImGui::End();
+	return parametersChanged;
 }
 
-void Editor::BeginVolumetricCloud(VolumetricCloud& cloud) {
+bool Editor::BeginVolumetricCloud(VolumetricCloud& cloud) {
 	VolumetricCloudParameters& p = cloud.parameters;
 
 	bool parametersChanged = false;
+
 	if (!ImGui::Begin("Volumetric Cloud")) {
 		ImGui::End();
-		return;
+		return false;
 	}
 
 	if (ImGui::CollapsingHeader("Density", ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -709,6 +731,8 @@ void Editor::BeginVolumetricCloud(VolumetricCloud& cloud) {
 		cloud.MarkParametersDirty();
 
 	ImGui::End();
+
+	return parametersChanged;
 }
 
 void Editor::BeginHierarchy(Scene& scene) {

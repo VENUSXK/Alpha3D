@@ -7,10 +7,7 @@ class Window;
 
 class Camera {
 public:
-    Camera(float fov, Window& window,
-        glm::vec3 position = glm::vec3(-2.0f, 0.0f, 0.0f),
-        glm::vec3 target = glm::vec3(0.0f, 0.0f, 0.0f)
-    );
+    Camera(float fov, Window& window, glm::vec3 position, glm::vec3 target, float minHeight);
 
     bool SetView();
 
@@ -44,10 +41,11 @@ public:
 
     void RebuildView();
 
-    float moveSpeed = 250.0f;
+    float moveSpeed = 10.0f;
 
 private:
 
+    float minHeight = 1.8f;
     float deltaTime = 0.0f;	// Time between current frame and last frame
     float lastFrame = 0.0f; // Time of last frame
 

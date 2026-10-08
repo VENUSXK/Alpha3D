@@ -121,7 +121,7 @@ Model Model::Terrain(const char* heightTexPath, float width, float depth, float 
             size_t index = static_cast<size_t>(z) * columns + x;
             float u = static_cast<float>(x) / (columns - 1);
             float v = static_cast<float>(z) / (rows - 1);
-            float height = heights[index] / 65535.0f * heightScale - centerHeight - 2.0f;
+            float height = heights[index] / 65535.0f * heightScale - centerHeight;
 
             vertices[index].Position = glm::vec3((u - 0.5f) * width, height, (v - 0.5f) * depth);
             vertices[index].TexCoords = glm::vec2(u, 1.0f - v);
@@ -249,6 +249,9 @@ Mesh Model::processMesh(aiMesh* mesh, const aiScene* scene)
 
         vertex.Position = vector;
 
+        minPosition = glm::min(minPosition, vertex.Position);
+        maxPosition = glm::max(maxPosition, vertex.Position);
+
         // setting vertex normal
         vector.x = mesh->mNormals[i].x;
         vector.y = mesh->mNormals[i].y;
@@ -274,6 +277,7 @@ Mesh Model::processMesh(aiMesh* mesh, const aiScene* scene)
 
         // adding vertex
         vertices.push_back(vertex);
+
     }
 
     // ebo indices processing
@@ -327,7 +331,7 @@ Model::Model(const char* modelPath)
 {
     const std::string path = modelPath;
     Assimp::Importer import;
-    const aiScene* scene = import.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
+    const aiScene* scene = import.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_PreTransformVertices);
 
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
     {

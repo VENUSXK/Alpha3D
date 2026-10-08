@@ -1,21 +1,16 @@
 #pragma once
-
 #include <functional>
 #include <string>
 #include <vector>
-
 #include <glm/glm.hpp>
-
 #include "renderer/LUT.h"
 #include "renderer/Shader.h"
-
 class Camera;
 class Editor;
 class RenderProfiler;
 class Window;
 
 struct SkyAtmosphereParams {
-
     float sunLongitude = -90.0f;
     float sunLatitude = 33.4f;
     float lightIntensity = 40.0f;
@@ -48,13 +43,19 @@ struct SkyAtmosphereParams {
     float gamma = 2.2f;
 
     // ray-marching
-    int primarySteps = 32;
+    int primarySteps = 128;
     int lightSteps = 8;
 
     // lut params
     bool useTransmittanceLUT = true;
     bool useSkyViewLUT = true;
     int transmittanceLUTSteps = 64;
+
+    // aerial perspective
+    int aerialPerspectiveSize = 32;
+    float aerialPerspectiveMaxDistance = 40000.0f;
+
+    int aerialPerspectiveSteps = 32;
 };
 
 class SkyAtmosphere {
@@ -65,16 +66,19 @@ public:
     void RenderEditor(Editor& editor);
     void MarkParametersDirty() { parametersDirty = true; }
 
-    Shader shader_sky_atmosphere = Shader(
-        "shaders/sky_atmosphere/full_screen.vert",
-        "shaders/sky_atmosphere/sky_atmosphere.frag"
-    );
+    Shader shader_sky_atmosphere = Shader("shaders/sky_atmosphere/full_screen.vert", "shaders/sky_atmosphere/sky_atmosphere.frag");
     SkyAtmosphereParams parameters;
 
     void RenderTransmittanceLUT();
     void RenderSkyViewLUT();
     bool SaveTransmittanceLUT(const std::string& outputPath) const;
     bool SaveSkyViewLUT(const std::string& outputPath) const;
+
+    void RenderAerialPerspectiveVolume(Camera& camera);
+    void BindAerialPerspectiveVolume(unsigned int slot) const;
+
+    unsigned int shadowTexture = 0;
+    glm::mat4 shadowViewProjection = glm::mat4(1.0f);
 
 private:
     LUT* GetLUT(const std::string& name);
@@ -85,4 +89,10 @@ private:
     std::vector<LUT> luts;
     unsigned int lut_framebuffer = 0;
     bool parametersDirty = true;
+
+    void AllocateAerialPerspectiveVolume();
+
+    unsigned int aerialPerspectiveTexture = 0;
+    unsigned int aerialPerspectiveFramebuffer = 0;
+    int allocatedAerialPerspectiveSize = 0;
 };

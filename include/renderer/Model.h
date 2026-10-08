@@ -22,6 +22,9 @@ public:
     static Model Sphere(int sectorCount = 36, int stackCount = 18, float radius = 0.5f);
     static Model Terrain(const char* heightTexPath, float width, float depth, float heightScale, std::vector<Texture> textures);
 
+    glm::vec3 GetSize() const { return maxPosition - minPosition; }
+    glm::vec3 GetCenter() const { return (minPosition + maxPosition) * 0.5f; }
+
     void Draw(Shader& shader);
 private:
     std::vector<Mesh> mMeshes;
@@ -30,6 +33,9 @@ private:
     std::vector<Texture> loadMaterialTextures(aiMaterial* mat, aiTextureType type, std::string typeName);
     void processNode(aiNode* node, const aiScene* scene);
     Mesh processMesh(aiMesh* mesh, const aiScene* scene);
+
+    glm::vec3 minPosition = glm::vec3(std::numeric_limits<float>::max());
+    glm::vec3 maxPosition = glm::vec3(std::numeric_limits<float>::lowest());
 
     std::vector<Texture> textures_loaded;
 };

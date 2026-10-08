@@ -16,6 +16,8 @@ class RenderProfiler;
 class SkyAtmosphere;
 class Shader;
 class VolumetricCloud;
+class Terrain;
+
 class Window;
 
 class Scene {
@@ -31,7 +33,7 @@ public:
 
 
     const IBL& GetIBL() const { return ibl; }
-
+    IBL& GetIBL() { return ibl; }
     const std::string& GetName() const { return name; }
     SkyAtmosphere& GetAtmosphere();
     const SkyAtmosphere& GetAtmosphere() const;
@@ -45,13 +47,18 @@ public:
     const std::vector<std::unique_ptr<GameObject>>& GetGameObjects() const { return game_objects; }
     void Clear();
 
-    Shader shader{ "shaders/pbr/pbr_ibl_test.vert", "shaders/pbr/pbr_ibl_test.frag" };
+    Shader shader{ "shaders/terrain/terrain.vert", "shaders/terrain/terrain.frag" };
 
 private:
+    Shader shadowShader{ "shaders/shadow/shadow.vert", "shaders/shadow/shadow.frag" };
+    unsigned int shadowTexture = 0;
+    unsigned int shadowFramebuffer = 0;
+    int shadowSize = 8192;
+
     std::vector<std::unique_ptr<GameObject>> game_objects;
     std::unique_ptr<SkyAtmosphere> atmosphere;
     std::unique_ptr<VolumetricCloud> volumetric_cloud;
-    std::unique_ptr<Model> terrain;
+    std::unique_ptr<Terrain> terrain;
 
     uint32_t selected_id = 0;
     uint32_t next_id = 1;

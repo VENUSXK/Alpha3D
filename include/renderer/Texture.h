@@ -47,7 +47,7 @@ public:
     unsigned int GetId() const { return mId; }
     aiString GetTexName() const { return mName; }
     const std::string& GetType() const { return mType; }
-    static bool Load2D(unsigned int& texture, const std::string& path);
+    static bool Load2D(unsigned int& texture, const std::string& path, unsigned int internalFormat = GL_RGBA8);
     static bool Load3D(unsigned int& texture, unsigned int size, const std::string& pathTemplate);
     unsigned int LoadHDR(const std::string& path);
     void Bind(unsigned int slot = 0);
