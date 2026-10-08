@@ -11,7 +11,6 @@
 #include "core/opengl.h"
 
 #include "core/Window.h"
-#include "core/Viewport.h"
 #include "core/Config.h"
 #include "core/Log.h"
 #include "core/Editor.h"
@@ -39,10 +38,6 @@ int main()
         LOG_ERROR("Failed to initialize GLAD");
         return -1;
     }
-    glViewport(0, 0, config.window.width, config.window.height);
-
-    Viewport viewport;
-    viewport.Init(static_cast<float>(config.window.width), static_cast<float>(config.window.height));
 
     Editor editor;
     editor.Init(&window);
@@ -58,34 +53,36 @@ int main()
     Camera camera(config.renderer.fov, window, glm::vec3(-0.0f, 450.0f, -0.0f), glm::vec3(0.0f, 0.0f, 1.0f), 384.0f);
     window.SetCamera(&camera);
 
-    window.SetResizeCallback([&](int width, int height) {
-        if (height > 0) camera.SetProjection(config.renderer.fov, static_cast<float>(width) / static_cast<float>(height));
-    });
-
     while (!window.ShouldClose())
     {
         profiler.BeginFrame();
         Time::Update();
         editor.Update(window);
-        editor.BeginFrame(viewport);
-        camera.SetProjection(camera.GetFov(), viewport.GetWidth() / viewport.GetHeight());
-
-        // Viewport
-        {
-            A3_PROFILE_PASS(profiler, "Viewport");
-            viewport.BeginRender();
-            camera.ProcessEditorInput(&window, editor.IsViewportHovered());
+        editor.BeginFrame();
+        int framebufferWidth = 0, framebufferHeight = 0;
+        glfwGetFramebufferSize(window.GetGLFWWindow(), &framebufferWidth, &framebufferHeight);
+        camera.ProcessEditorInput(&window, !editor.Hover() && !editor.WantCaptureKeyboard());
+        if (framebufferWidth > 0 && framebufferHeight > 0) {
+            A3_PROFILE_PASS(profiler, "Scene");
+            camera.SetProjection(camera.GetFov(), static_cast<float>(framebufferWidth) / static_cast<float>(framebufferHeight));
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            glViewport(0, 0, framebufferWidth, framebufferHeight);
+            glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
             scene.Render(camera, profiler);
-            viewport.EndRender();
         }
 
         // Editor
         {
             A3_PROFILE_PASS(profiler, "Editor UI");
-            editor.BeginPerformance(profiler);
-            editor.BeginCamera(camera);
-            scene.RenderEditor(editor, camera);
-            if (editor.HasPerformanceAffectingEdit()) profiler.ResetFrameHistory();
+            ImGui::SetNextWindowSize(ImVec2(520.0f, 720.0f), ImGuiCond_FirstUseEver);
+            if (ImGui::Begin("Editor")) {
+                editor.BeginPerformance(profiler);
+                editor.BeginCamera(camera);
+                scene.RenderEditor(editor, camera);
+                if (editor.HasPerformanceAffectingEdit()) profiler.ResetFrameHistory();
+            }
+            ImGui::End();
             editor.EndFrame();
         }
 

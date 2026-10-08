@@ -14,7 +14,6 @@
 #include <imgui_internal.h>
 
 #include "core/Log.h"
-#include "core/viewport.h"
 #include "core/Window.h"
 
 #include "renderer/IBL.h"
@@ -34,38 +33,20 @@
 
 #include "components/Terrain.h"
 
-void Editor::ShowMaterialPreview()
-{
-	const auto& preview = materialPreview;
-
-	if (!preview.texture) return;
-
-	// 必须紧接在场景的 ImGui::Image() 后调用。
-	const ImVec2 viewMin = ImGui::GetItemRectMin();
-	const ImVec2 viewMax = ImGui::GetItemRectMax();
-
-	const float padding = 12.0f;
-	const float availableWidth = viewMax.x - viewMin.x;
-	const float availableHeight = viewMax.y - viewMin.y;
-
-	if (availableWidth <= 0.0f || availableHeight <= 0.0f) return;
-
-	const float scale = std::min(1.0f, std::min(availableWidth / float(preview.width), availableHeight / float(preview.height)));
-	const ImVec2 size(float(preview.width) * scale, float(preview.height) * scale);
-
-	const ImVec2 bottomRight(viewMax.x, viewMax.y);
-	const ImVec2 topLeft(bottomRight.x - size.x, bottomRight.y - size.y);
-
-	ImDrawList* drawList = ImGui::GetWindowDrawList();
-
-	drawList->PushClipRect(viewMin, viewMax, true);
-	drawList->AddImage((ImTextureID)(intptr_t)preview.texture, topLeft, bottomRight, ImVec2(0, 1), ImVec2(1, 0));
-	drawList->PopClipRect();
+void Editor::ShowMaterialPreview() {
+    const auto& preview = materialPreview;
+    if (!preview.texture) return;
+    const ImGuiViewport* mainViewport = ImGui::GetMainViewport();
+    const ImVec2 viewMin = mainViewport->Pos;
+    const ImVec2 viewMax(viewMin.x + mainViewport->Size.x, viewMin.y + mainViewport->Size.y);
+    const float availableWidth = mainViewport->Size.x;
+    const float availableHeight = mainViewport->Size.y;
+    if (availableWidth <= 0.0f || availableHeight <= 0.0f) return;
+    const float scale = std::min(1.0f, std::min(availableWidth / float(preview.width), availableHeight / float(preview.height)));
+    const ImVec2 size(float(preview.width) * scale, float(preview.height) * scale);
+    const ImVec2 topLeft(viewMax.x - size.x, viewMax.y - size.y);
+    ImGui::GetBackgroundDrawList()->AddImage((ImTextureID)(intptr_t)preview.texture, topLeft, viewMax, ImVec2(0, 1), ImVec2(1, 0));
 }
-
-
-
-
 void Editor::InitMaterialPreview()
 {
 	auto& preview = materialPreview;
@@ -254,7 +235,6 @@ void Editor::Init(Window* window)
     ImGui::CreateContext();
 
     ImGuiIO& io = ImGui::GetIO();
-	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
 
@@ -298,179 +278,125 @@ Editor::~Editor()
 
 
 
-void Editor::BeginFrame(Viewport& viewport)
-{
+void Editor::BeginFrame() {
     ImGui_ImplOpenGL3_NewFrame();
-    
-	ImGui_ImplGlfw_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
-	ImGui::DockSpaceOverViewport();
-
-
-	// 1.1 视窗
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0)); // style
-
-	ImGui::Begin("Viewport");
-
-	ImVec2 viewportSize = ImGui::GetContentRegionAvail();
-	viewport.Resize(viewportSize.x, viewportSize.y);
-
-	ImGui::Image((void*)(intptr_t)viewport.GetColorTexture(), ImGui::GetContentRegionAvail(), ImVec2(0, 1), ImVec2(1, 0));
-	this->isViewportHovered = ImGui::IsItemHovered();
-
-	ShowMaterialPreview();
-
-	ImGui::End();
-
-	ImGui::PopStyleVar(); // style
 }
-
 void Editor::BeginTerrain(Terrain& terrain) {
 	TerrainParams& parameters = terrain.parameters;
-	ImGui::Begin("Terrain");
+	if (!ImGui::CollapsingHeader("Terrain")) return;
+	ImGui::PushID("Terrain");
 	ImGui::DragFloatRange2("Rock Grayscale Range", &parameters.marbleToDarkThreshold, &parameters.darkToRockyThreshold, 0.001f, 0.05f, 0.95f, "Marble / Dark: %.3f", "Dark / Rocky: %.3f");
 	ImGui::DragFloatRange2("Grayscale Range", &parameters.rockThreshold, &parameters.grassThreshold, 0.001f, 0.001f, 0.999f, "Rock: %.3f", "Grass: %.3f");
-	ImGui::End();
+	ImGui::PopID();
 }
 
 
 void Editor::BeginCamera(Camera & camera) {
-	ImGui::Begin("Camera");
-
-	ImGui::Text("View:");
-
+	if (!ImGui::CollapsingHeader("Camera")) return;
+	ImGui::PushID("Camera");
+	ImGui::SeparatorText("View");
 	auto fovToMm = [](float fov_deg, float sensor_diag = 43.27f) -> float {
 		float fov_rad = glm::radians(fov_deg);
 		return (sensor_diag / 2.0f) / std::tan(fov_rad / 2.0f);
 	};
-
 	auto mmToFov = [](float mm, float sensor_diag = 43.27f) -> float {
 		return glm::degrees(2.0f * std::atan((sensor_diag / 2.0f) / mm));
 	};
-
 	float fov = camera.GetFov();
 	float mm = fovToMm(fov);
-
 	if (ImGui::SliderFloat("Focal Length", &mm, fovToMm(170.0f), fovToMm(10.0f), "%.1f mm")) {
 		mm = glm::clamp(mm, 1.0f, 500.0f); // 防止极端值
 		camera.SetFov(mmToFov(mm));
 	}
-
-	ImGui::Text("Movement:");
-
+	ImGui::SeparatorText("Movement");
 	glm::vec3 position = camera.GetPosition();
 	if (ImGui::InputFloat3("Position", &position.x, "%.2f")) {
 		camera.SetPosition(position);
 	}
-
 	glm::vec3 direction = camera.GetDirection();
 	if (ImGui::InputFloat3("Direction", &direction.x, "%.3f")) {
 		camera.SetDirection(direction);
 	}
 	ImGui::InputFloat("Speed", &camera.moveSpeed, 0.5f, 1.0f, "%.1f");
-
-
-	ImGui::End();
+	ImGui::PopID();
 }
 
 void Editor::BeginIBL(IBL& ibl) {
-	if (!ImGui::Begin("IBL")) {
-		ImGui::End();
-		return;
-	}
+	if (!ImGui::CollapsingHeader("IBL")) return;
+	ImGui::PushID("IBL");
 	if (ImGui::Button("Rebuild IBL")) ibl.MarkDirty();
-
-	if (ImGui::CollapsingHeader("Test Sphere Configuration", ImGuiTreeNodeFlags_DefaultOpen)) {
-		ImGui::SliderFloat("Metallic", &materialPreview.metallic, 0.01f, 1.0f, "%.2f");
-		ImGui::SliderFloat("Roughness", &materialPreview.roughness, 0.01f, 1.0f, "%.2f");
-	}
-
-	ImGui::End();
+	ImGui::SeparatorText("Test Sphere Configuration");
+	ImGui::SliderFloat("Metallic", &materialPreview.metallic, 0.01f, 1.0f, "%.2f");
+	ImGui::SliderFloat("Roughness", &materialPreview.roughness, 0.01f, 1.0f, "%.2f");
+	ImGui::PopID();
 }
 
 void Editor::BeginDetails(GameObject& game_object) {
 	Transform& transform = game_object.GetTransform();
-
-	if (!ImGui::Begin("Details")) {
-		ImGui::End();
-		return;
-	}
-
+	if (!ImGui::CollapsingHeader("Details")) return;
+	ImGui::PushID("Details");
 	ImGui::Text(game_object.GetName().c_str());
-
-	if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
-		ImGui::Text("Location:");
-		glm::vec3 position = transform.position;
-		bool positionChanged = false;
-		positionChanged |= ImGui::DragFloat("X##trans_x", &position[0], 0.005f, -FLT_MAX, +FLT_MAX, "%.2f m");
-		positionChanged |= ImGui::DragFloat("Y##trans_y", &position[1], 0.005f, -FLT_MAX, +FLT_MAX, "%.2f m");
-		positionChanged |= ImGui::DragFloat("Z##trans_z", &position[2], 0.005f, -FLT_MAX, +FLT_MAX, "%.2f m");
-		if (positionChanged)
-			transform.SetPosition(position);
-		ImGui::Spacing();
-
-		ImGui::Text("Rotation:");
-		glm::vec3 rotation = transform.rotation;
-		bool rotationChanged = false;
-		rotationChanged |= ImGui::DragFloat("X##rotate_x", &rotation[0], 0.2f, -FLT_MAX, +FLT_MAX, "%.0f deg");
-		rotationChanged |= ImGui::DragFloat("Y##rotate_y", &rotation[1], 0.2f, -FLT_MAX, +FLT_MAX, "%.0f deg");
-		rotationChanged |= ImGui::DragFloat("Z##rotate_z", &rotation[2], 0.2f, -FLT_MAX, +FLT_MAX, "%.0f deg");
-		if (rotationChanged)
-			transform.SetRotation(rotation);
-
-		ImGui::Text("Scale:");
-		glm::vec3 scale = transform.scale;
-		if (ImGui::DragFloat3("Scale##scale", &scale.x, 0.05f, -FLT_MAX, +FLT_MAX, "%.3f"))
-			transform.SetScale(scale);
+	ImGui::SeparatorText("Transform");
+	ImGui::Text("Location:");
+	glm::vec3 position = transform.position;
+	bool positionChanged = false;
+	positionChanged |= ImGui::DragFloat("X##trans_x", &position[0], 0.005f, -FLT_MAX, +FLT_MAX, "%.2f m");
+	positionChanged |= ImGui::DragFloat("Y##trans_y", &position[1], 0.005f, -FLT_MAX, +FLT_MAX, "%.2f m");
+	positionChanged |= ImGui::DragFloat("Z##trans_z", &position[2], 0.005f, -FLT_MAX, +FLT_MAX, "%.2f m");
+	if (positionChanged)
+		transform.SetPosition(position);
+	ImGui::Separator();
+	ImGui::Text("Rotation:");
+	glm::vec3 rotation = transform.rotation;
+	bool rotationChanged = false;
+	rotationChanged |= ImGui::DragFloat("X##rotate_x", &rotation[0], 0.2f, -FLT_MAX, +FLT_MAX, "%.0f deg");
+	rotationChanged |= ImGui::DragFloat("Y##rotate_y", &rotation[1], 0.2f, -FLT_MAX, +FLT_MAX, "%.0f deg");
+	rotationChanged |= ImGui::DragFloat("Z##rotate_z", &rotation[2], 0.2f, -FLT_MAX, +FLT_MAX, "%.0f deg");
+	if (rotationChanged)
+		transform.SetRotation(rotation);
+	ImGui::Separator();
+	ImGui::Text("Scale:");
+	glm::vec3 scale = transform.scale;
+	if (ImGui::DragFloat3("Scale##scale", &scale.x, 0.05f, -FLT_MAX, +FLT_MAX, "%.3f"))
+		transform.SetScale(scale);
+	ImGui::SeparatorText("Animate");
+	ImGui::Text("Rotation Speed:");
+	ImGui::SliderFloat("X##rotate_speed_x", &game_object.rotate_speed_x, -90.0f, 90.0f, "%.0f deg/s");
+	ImGui::SliderFloat("Y##rotate_speed_y", &game_object.rotate_speed_y, -90.0f, 90.0f, "%.0f deg/s");
+	ImGui::SliderFloat("Z##rotate_speed_z", &game_object.rotate_speed_z, -90.0f, 90.0f, "%.0f deg/s");
+	ImGui::SeparatorText("Inspector");
+	if (game_object.light) {
+		ImGui::Text("Light:");
+		static float light_intensity_low = 0.0f, light_intensity_high = 20.0f;
+		ImGui::ColorEdit3("Color##1", (float*)&(*game_object.light).color, ImGuiColorEditFlags_DisplayRGB | ImGuiColorEditFlags_Float);
+		ImGui::SliderScalar("Intensity", ImGuiDataType_Float, &(*game_object.light).intensity, &light_intensity_low, &light_intensity_high, "%.1f lm");
 	}
-
-
-	if (ImGui::CollapsingHeader("Animate", ImGuiTreeNodeFlags_DefaultOpen)) {
-		ImGui::Text("Rotation Speed:");
-		ImGui::SliderFloat("X##rotate_speed_x", &game_object.rotate_speed_x, -90.0f, 90.0f, "%.0f deg/s");
-		ImGui::SliderFloat("Y##rotate_speed_y", &game_object.rotate_speed_y, -90.0f, 90.0f, "%.0f deg/s");
-		ImGui::SliderFloat("Z##rotate_speed_z", &game_object.rotate_speed_z, -90.0f, 90.0f, "%.0f deg/s");
+	if (game_object.pbr_sphere) {
+		ImGui::Text("PBR Parameters:");
+		static float pbr_roughness_low = 0.01f, pbr_roughness_high = 1.0f;
+		static float pbr_metallic_low = 0.0f, pbr_metallic_high = 1.0f;
+		ImGui::ColorEdit3("Albedo##pbr_albedo", (float*)&(*game_object.pbr_sphere).albedo, ImGuiColorEditFlags_DisplayRGB | ImGuiColorEditFlags_Float);
+		ImGui::SliderScalar("Roughness", ImGuiDataType_Float, &(*game_object.pbr_sphere).roughness, &pbr_roughness_low, &pbr_roughness_high, "%.2f");
+		ImGui::SliderScalar("Metallic", ImGuiDataType_Float, &(*game_object.pbr_sphere).metallic, &pbr_metallic_low, &pbr_metallic_high, "%.2f");
 	}
-
-	if (ImGui::CollapsingHeader("Inspector", ImGuiTreeNodeFlags_DefaultOpen)) {
-
-		if (game_object.light) {
-			ImGui::Text("Light:");
-			static float light_intensity_low = 0.0f, light_intensity_high = 20.0f;
-			ImGui::ColorEdit3("Color##1", (float*)&(*game_object.light).color, ImGuiColorEditFlags_DisplayRGB | ImGuiColorEditFlags_Float);
-			ImGui::SliderScalar("Intensity", ImGuiDataType_Float, &(*game_object.light).intensity, &light_intensity_low, &light_intensity_high, "%.1f lm");
-		}
-
-		if (game_object.pbr_sphere) {
-			ImGui::Text("PBR Parameters:");
-			static float pbr_roughness_low = 0.01f, pbr_roughness_high = 1.0f;
-			static float pbr_metallic_low = 0.0f, pbr_metallic_high = 1.0f;
-			ImGui::ColorEdit3("Albedo##pbr_albedo", (float*)&(*game_object.pbr_sphere).albedo, ImGuiColorEditFlags_DisplayRGB | ImGuiColorEditFlags_Float);
-			ImGui::SliderScalar("Roughness", ImGuiDataType_Float, &(*game_object.pbr_sphere).roughness, &pbr_roughness_low, &pbr_roughness_high, "%.2f");
-			ImGui::SliderScalar("Metallic", ImGuiDataType_Float, &(*game_object.pbr_sphere).metallic, &pbr_metallic_low, &pbr_metallic_high, "%.2f");
-		}
-
-		if (!game_object.light && !game_object.pbr_sphere) {
-			ImGui::Text("This object has no specific properties.");
-		}
-
+	if (!game_object.light && !game_object.pbr_sphere) {
+		ImGui::Text("This object has no specific properties.");
 	}
-
-	ImGui::End();
-
+	ImGui::PopID();
 }
 
 
-void Editor::EndFrame()
-{
+void Editor::EndFrame() {
+	ShowMaterialPreview();
 	ImGui::Render();
 	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
 
-void Editor::BeginPerformance(RenderProfiler& profiler)
-{
-	ImGui::Begin("Performance");
-
+void Editor::BeginPerformance(RenderProfiler& profiler) {
+	if (!ImGui::CollapsingHeader("Performance")) return;
+	ImGui::PushID("Performance");
 	bool enabled = profiler.IsEnabled();
 	if (ImGui::Checkbox("Profiling", &enabled)) profiler.SetEnabled(enabled);
 	ImGui::SameLine();
@@ -478,13 +404,10 @@ void Editor::BeginPerformance(RenderProfiler& profiler)
 	if (ImGui::Checkbox("Pause", &paused)) profiler.SetPaused(paused);
 	ImGui::SameLine();
 	if (ImGui::Button("Reset")) profiler.Reset();
-
 	ImGui::SameLine();
-
 	const double averageFrameMs = profiler.GetAverageFrameCpuMs();
 	const double averageFps = averageFrameMs > 0.0 ? 1000.0 / averageFrameMs : 0.0;
 	ImGui::Text("Frame Avg: %.2f ms  |  FPS Avg: %.1f", averageFrameMs, averageFps);
-
 	auto stats = profiler.GetStats();
 	std::stable_sort(stats.begin(), stats.end(), [](const auto& left, const auto& right) {
 		if (left.averageGpuMs != right.averageGpuMs)
@@ -492,11 +415,10 @@ void Editor::BeginPerformance(RenderProfiler& profiler)
 		return left.averageCpuMs > right.averageCpuMs;
 	});
 	const double averageFrameGpuMs = profiler.GetAverageFrameGpuMs();
-
 	const ImGuiTableFlags flags = ImGuiTableFlags_BordersInnerV |
 		ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable |
 		ImGuiTableFlags_ScrollY | ImGuiTableFlags_SizingStretchProp;
-	ImGui::TextUnformatted("Frame Regions");
+	ImGui::SeparatorText("Frame Regions");
 	if (ImGui::BeginTable("Frame regions", 5, flags, ImVec2(0.0f, 260.0f))) {
 		ImGui::TableSetupColumn("Region", ImGuiTableColumnFlags_WidthStretch, 2.5f);
 		ImGui::TableSetupColumn("CPU", ImGuiTableColumnFlags_WidthFixed, 75.0f);
@@ -504,7 +426,6 @@ void Editor::BeginPerformance(RenderProfiler& profiler)
 		ImGui::TableSetupColumn("Avg GPU", ImGuiTableColumnFlags_WidthFixed, 75.0f);
 		ImGui::TableSetupColumn("GPU Avg Load", ImGuiTableColumnFlags_WidthStretch, 1.0f);
 		ImGui::TableHeadersRow();
-
 		for (const auto& region : stats) {
 			if (region.name.rfind("One-time/", 0) == 0) continue;
 			ImGui::PushID(region.name.c_str());
@@ -535,7 +456,6 @@ void Editor::BeginPerformance(RenderProfiler& profiler)
 		}
 		ImGui::EndTable();
 	}
-
 	bool hasOneTimeTasks = false;
 	for (const auto& region : stats) {
 		if (region.name.rfind("One-time/", 0) == 0) {
@@ -543,10 +463,8 @@ void Editor::BeginPerformance(RenderProfiler& profiler)
 			break;
 		}
 	}
-
 	if (hasOneTimeTasks) {
-		ImGui::Spacing();
-		ImGui::TextUnformatted("One-time Tasks");
+		ImGui::SeparatorText("One-time Tasks");
 		if (ImGui::BeginTable("One-time tasks", 4,
 			ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_RowBg |
 			ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingStretchProp)) {
@@ -555,7 +473,6 @@ void Editor::BeginPerformance(RenderProfiler& profiler)
 			ImGui::TableSetupColumn("GPU", ImGuiTableColumnFlags_WidthFixed, 85.0f);
 			ImGui::TableSetupColumn("Avg GPU", ImGuiTableColumnFlags_WidthFixed, 85.0f);
 			ImGui::TableHeadersRow();
-
 			for (const auto& task : stats) {
 				constexpr const char* prefix = "One-time/";
 				if (task.name.rfind(prefix, 0) != 0) continue;
@@ -580,8 +497,7 @@ void Editor::BeginPerformance(RenderProfiler& profiler)
 			ImGui::EndTable();
 		}
 	}
-
-	ImGui::End();
+	ImGui::PopID();
 }
 
 bool Editor::HasPerformanceAffectingEdit() const
@@ -608,145 +524,105 @@ bool Editor::WantCaptureKeyboard() const
 bool Editor::BeginSkyAtmosphere(SkyAtmosphere& sky) {
 	SkyAtmosphereParams& p = sky.parameters;
 	bool parametersChanged = false;
-	ImGui::Begin("Sky Atmosphere");
-
-	if (ImGui::CollapsingHeader("Sun", ImGuiTreeNodeFlags_DefaultOpen)) {
-		parametersChanged |= ImGui::DragFloat("Longitude", &p.sunLongitude, 0.5f, -180.0f, 180.0f, "%.1f deg");
-		parametersChanged |= ImGui::DragFloat("Latitude", &p.sunLatitude, 0.5f, -90.0f, 90.0f, "%.1f deg");
-		p.sunLatitude = glm::clamp(p.sunLatitude, -90.0f, 90.0f);
-		if (parametersChanged) {
-			const float longitude = glm::radians(p.sunLongitude);
-			const float latitude = glm::radians(p.sunLatitude);
-			p.lightDirection = glm::normalize(glm::vec3(
-				cos(latitude) * cos(longitude),
-				sin(latitude),
-				cos(latitude) * sin(longitude)));
-		}
-		parametersChanged |= ImGui::SliderFloat("Light Intensity", &p.lightIntensity, 0.0f, 100.0f, "%.1f");
+	if (!ImGui::CollapsingHeader("Sky Atmosphere")) return false;
+	ImGui::PushID("Sky Atmosphere");
+	ImGui::SeparatorText("Sun");
+	parametersChanged |= ImGui::DragFloat("Longitude", &p.sunLongitude, 0.5f, -180.0f, 180.0f, "%.1f deg");
+	parametersChanged |= ImGui::DragFloat("Latitude", &p.sunLatitude, 0.5f, -90.0f, 90.0f, "%.1f deg");
+	p.sunLatitude = glm::clamp(p.sunLatitude, -90.0f, 90.0f);
+	if (parametersChanged) {
+		const float longitude = glm::radians(p.sunLongitude);
+		const float latitude = glm::radians(p.sunLatitude);
+		p.lightDirection = glm::normalize(glm::vec3(
+			cos(latitude) * cos(longitude),
+			sin(latitude),
+			cos(latitude) * sin(longitude)));
 	}
-
-	if (ImGui::CollapsingHeader("Planet", ImGuiTreeNodeFlags_DefaultOpen)) {
-		parametersChanged |= ImGui::DragFloat("Camera Height", &p.cameraHeight, 100.0f, 1.0f, 1000000.0f, "%.0f m");
-		parametersChanged |= ImGui::DragFloat("Planet Radius", &p.planetRadius, 1000.0f, 1.0f, FLT_MAX, "%.0f m");
-		parametersChanged |= ImGui::DragFloat("Atmosphere Radius", &p.atmosphereRadius, 1000.0f, p.planetRadius + 1.0f, FLT_MAX, "%.0f m");
-		p.atmosphereRadius = glm::max(p.atmosphereRadius, p.planetRadius + 1.0f);
+	parametersChanged |= ImGui::SliderFloat("Light Intensity", &p.lightIntensity, 0.0f, 100.0f, "%.1f");
+	ImGui::SeparatorText("Planet");
+	parametersChanged |= ImGui::DragFloat("Camera Height", &p.cameraHeight, 100.0f, 1.0f, 1000000.0f, "%.0f m");
+	parametersChanged |= ImGui::DragFloat("Planet Radius", &p.planetRadius, 1000.0f, 1.0f, FLT_MAX, "%.0f m");
+	parametersChanged |= ImGui::DragFloat("Atmosphere Radius", &p.atmosphereRadius, 1000.0f, p.planetRadius + 1.0f, FLT_MAX, "%.0f m");
+	p.atmosphereRadius = glm::max(p.atmosphereRadius, p.planetRadius + 1.0f);
+	ImGui::SeparatorText("Scattering");
+	parametersChanged |= ImGui::Checkbox("Use Rayleigh Scattering", &p.useRayleigh);
+	parametersChanged |= ImGui::Checkbox("Use Mie Scattering", &p.useMie);
+	parametersChanged |= ImGui::Checkbox("Use Absorption", &p.useAbsorption);
+	ImGui::SeparatorText("Ray Marching");
+	parametersChanged |= ImGui::SliderInt("Primary Steps", &p.primarySteps, 1, 1024);
+	parametersChanged |= ImGui::SliderInt("Light Steps", &p.lightSteps, 1, 128);
+	ImGui::SeparatorText("Acceleration");
+	parametersChanged |= ImGui::Checkbox("Use Transmittance LUT", &p.useTransmittanceLUT);
+	parametersChanged |= ImGui::Checkbox("Use Sky-View LUT", &p.useSkyViewLUT);
+	ImGui::SeparatorText("Aerial Perspective");
+	float mieCoefficient = p.mieBeta.x * 1000000.0f;
+	if (ImGui::SliderFloat("Mie Coefficient", &mieCoefficient, 0.0f, 200.0f, "%.1f")) {
+		p.mieBeta = glm::vec3(mieCoefficient * 0.000001f);
+		parametersChanged = true;
 	}
-
-	if (ImGui::CollapsingHeader("Scattering", ImGuiTreeNodeFlags_DefaultOpen)) {
-		parametersChanged |= ImGui::Checkbox("Use Rayleigh Scattering", &p.useRayleigh);
-		parametersChanged |= ImGui::Checkbox("Use Mie Scattering", &p.useMie);
-		parametersChanged |= ImGui::Checkbox("Use Absorption", &p.useAbsorption);
-	}
-
-	if (ImGui::CollapsingHeader("Ray Marching", ImGuiTreeNodeFlags_DefaultOpen)) {
-		parametersChanged |= ImGui::SliderInt("Primary Steps", &p.primarySteps, 1, 1024);
-		parametersChanged |= ImGui::SliderInt("Light Steps", &p.lightSteps, 1, 128);
-	}
-	
-	if (ImGui::CollapsingHeader("Acceleration", ImGuiTreeNodeFlags_DefaultOpen)) {
-		parametersChanged |= ImGui::Checkbox("Use Transmittance LUT", &p.useTransmittanceLUT);
-		parametersChanged |= ImGui::Checkbox("Use Sky-View LUT", &p.useSkyViewLUT);
-	}
-
-	if (ImGui::CollapsingHeader("Aerial Perspective", ImGuiTreeNodeFlags_DefaultOpen)) {
-		float mieCoefficient = p.mieBeta.x * 1000000.0f;
-		if (ImGui::SliderFloat("Mie Coefficient", &mieCoefficient, 0.0f, 200.0f, "%.1f")) {
-			p.mieBeta = glm::vec3(mieCoefficient * 0.000001f);
-			parametersChanged = true;
-		}
-		parametersChanged |= ImGui::SliderFloat("Mie Height", &p.mieHeight, 100.0f, 5000.0f, "%.0f m");
-		parametersChanged |= ImGui::SliderFloat("Mie G", &p.mieG, 0.0f, 0.95f, "%.2f");
-		parametersChanged |= ImGui::DragFloat("Max Distance", &p.aerialPerspectiveMaxDistance, 100.0f, 1000.0f, 100000.0f, "%.0f m");
-	}
-
+	parametersChanged |= ImGui::SliderFloat("Mie Height", &p.mieHeight, 100.0f, 5000.0f, "%.0f m");
+	parametersChanged |= ImGui::SliderFloat("Mie G", &p.mieG, 0.0f, 0.95f, "%.2f");
+	parametersChanged |= ImGui::DragFloat("Max Distance", &p.aerialPerspectiveMaxDistance, 100.0f, 1000.0f, 100000.0f, "%.0f m");
 	if (parametersChanged) sky.MarkParametersDirty();
-
-	ImGui::End();
+	ImGui::PopID();
 	return parametersChanged;
 }
 
 bool Editor::BeginVolumetricCloud(VolumetricCloud& cloud) {
 	VolumetricCloudParameters& p = cloud.parameters;
-
 	bool parametersChanged = false;
-
-	if (!ImGui::Begin("Volumetric Cloud")) {
-		ImGui::End();
-		return false;
+	if (!ImGui::CollapsingHeader("Volumetric Cloud")) return false;
+	ImGui::PushID("Volumetric Cloud");
+	ImGui::SeparatorText("Density");
+	parametersChanged |= ImGui::SliderFloat("Density Scale", &p.densityScale, 0.0f, 10.0f, "%.2f");
+	parametersChanged |= ImGui::SliderFloat("Extinction", &p.extinction, 0.0f, 10.0f, "%.2f");
+	ImGui::SeparatorText("Cloud Map");
+	parametersChanged |= ImGui::DragFloat("Cloud Map Scale", &p.cloudMapScale, 0.5f, 1.0f, 10000000.0f, "%.2f");
+	ImGui::SeparatorText("Noise");
+	parametersChanged |= ImGui::Checkbox("Use Low Frequency Noise", &p.useLowFreqNoise);
+	parametersChanged |= ImGui::DragFloat("Low Frequency Noise Scale", &p.lowFreqNoiseScale, 0.5f, 1.0f, 10000000.0f, "%.2f");
+	parametersChanged |= ImGui::Checkbox("Use High Frequency Noise", &p.useHighFreqNoise);
+	parametersChanged |= ImGui::DragFloat("High Frequency Noise Scale", &p.highFreqNoiseScale, 0.5f, 1.0f, 10000000.0f, "%.2f");
+	parametersChanged |= ImGui::SliderFloat("Erosion Strength", &p.erosionStrength, 0.0f, 1.0f, "%.2f");
+	ImGui::SeparatorText("Lighting");
+	parametersChanged |= ImGui::DragFloat3("Light Direction", &p.lightDirection.x, 0.01f, -1.0f, 1.0f, "%.2f");
+	parametersChanged |= ImGui::ColorEdit3("Light Color", &p.lightColor.x, ImGuiColorEditFlags_Float | ImGuiColorEditFlags_HDR);
+	parametersChanged |= ImGui::ColorEdit3("Ambient Light", &p.ambientLight.x, ImGuiColorEditFlags_Float | ImGuiColorEditFlags_HDR);
+	parametersChanged |= ImGui::SliderFloat("Light Intensity", &p.lightIntensity, 0.0f, 50.0f, "%.1f");
+	ImGui::SeparatorText("Ray Marching");
+	parametersChanged |= ImGui::SliderInt("Primary Steps", &p.primarySteps, 1, 96);
+	parametersChanged |= ImGui::SliderInt("Light Steps", &p.lightSteps, 1, 64);
+	parametersChanged |= ImGui::SliderFloat("Ray Jitter", &p.rayJitterStrength, 0.0f, 1.0f, "%.2f");
+	parametersChanged |= ImGui::DragFloat("Transmittance Cutoff", &p.transmittanceCutoff, 0.0005f, 0.0001f, 0.1f, "%.4f");
+	ImGui::SeparatorText("Nubis Lighting");
+	parametersChanged |= ImGui::SliderFloat("Phase G", &p.phaseG, -0.95f, 0.95f, "%.2f");
+	ImGui::SeparatorText("Cloud Volume");
+	glm::vec3 scale = p.cloudMapVolumeScale;
+	glm::vec3 translation = p.cloudMapVolumeTranslation;
+	bool transformChanged = false;
+	transformChanged |= ImGui::DragFloat3("Volume Scale", &scale.x, 0.5f, 0.01f, 10000000.0f, "%.4f");
+	transformChanged |= ImGui::DragFloat3("Volume Translation", &translation.x, 0.5f, -1000.0f, 10000000.0f, "%.4f");
+	if (transformChanged) {
+		scale = glm::max(scale, glm::vec3(0.01f));
+		cloud.updateVolumeTransform(scale, translation);
+		parametersChanged = true;
+		p.cloudMapVolumeScale = scale;
+		p.cloudMapVolumeTranslation = translation;
 	}
-
-	if (ImGui::CollapsingHeader("Density", ImGuiTreeNodeFlags_DefaultOpen)) {
-		parametersChanged |= ImGui::SliderFloat("Density Scale", &p.densityScale, 0.0f, 10.0f, "%.2f");
-		parametersChanged |= ImGui::SliderFloat("Extinction", &p.extinction, 0.0f, 10.0f, "%.2f");
-	}
-
-	if (ImGui::CollapsingHeader("Cloud Map", ImGuiTreeNodeFlags_DefaultOpen)) {
-		parametersChanged |= ImGui::DragFloat("Cloud Map Scale", &p.cloudMapScale, 0.5f, 1.0f, 10000000.0f, "%.2f");
-	}
-
-	if (ImGui::CollapsingHeader("Noise", ImGuiTreeNodeFlags_DefaultOpen)) {
-		parametersChanged |= ImGui::Checkbox("Use Low Frequency Noise", &p.useLowFreqNoise);
-		parametersChanged |= ImGui::DragFloat("Low Frequency Noise Scale", &p.lowFreqNoiseScale, 0.5f, 1.0f, 10000000.0f, "%.2f");
-
-		parametersChanged |= ImGui::Checkbox("Use High Frequency Noise", &p.useHighFreqNoise);
-		parametersChanged |= ImGui::DragFloat("High Frequency Noise Scale", &p.highFreqNoiseScale, 0.5f, 1.0f, 10000000.0f, "%.2f");
-
-		parametersChanged |= ImGui::SliderFloat("Erosion Strength", &p.erosionStrength, 0.0f, 1.0f, "%.2f");
-	}
-
-	if (ImGui::CollapsingHeader("Lighting", ImGuiTreeNodeFlags_DefaultOpen)) {
-		parametersChanged |= ImGui::DragFloat3("Light Direction", &p.lightDirection.x, 0.01f, -1.0f, 1.0f, "%.2f");
-		parametersChanged |= ImGui::ColorEdit3("Light Color", &p.lightColor.x, ImGuiColorEditFlags_Float | ImGuiColorEditFlags_HDR);
-		parametersChanged |= ImGui::ColorEdit3("Ambient Light", &p.ambientLight.x, ImGuiColorEditFlags_Float | ImGuiColorEditFlags_HDR);
-		parametersChanged |= ImGui::SliderFloat("Light Intensity", &p.lightIntensity, 0.0f, 50.0f, "%.1f");
-	}
-
-	if (ImGui::CollapsingHeader("Ray Marching", ImGuiTreeNodeFlags_DefaultOpen)) {
-		parametersChanged |= ImGui::SliderInt("Primary Steps", &p.primarySteps, 1, 96);
-		parametersChanged |= ImGui::SliderInt("Light Steps", &p.lightSteps, 1, 64);
-		parametersChanged |= ImGui::SliderFloat("Ray Jitter", &p.rayJitterStrength, 0.0f, 1.0f, "%.2f");
-		parametersChanged |= ImGui::DragFloat("Transmittance Cutoff", &p.transmittanceCutoff, 0.0005f, 0.0001f, 0.1f, "%.4f");
-	}
-
-	if (ImGui::CollapsingHeader("Nubis Lighting", ImGuiTreeNodeFlags_DefaultOpen)) {
-		parametersChanged |= ImGui::SliderFloat("Phase G", &p.phaseG, -0.95f, 0.95f, "%.2f");
-	}
-
-	if (ImGui::CollapsingHeader("Cloud Volume", ImGuiTreeNodeFlags_DefaultOpen)) {
-		glm::vec3 scale = p.cloudMapVolumeScale;
-		glm::vec3 translation = p.cloudMapVolumeTranslation;
-		bool transformChanged = false;
-		transformChanged |= ImGui::DragFloat3("Volume Scale", &scale.x, 0.5f, 0.01f, 10000000.0f, "%.4f");
-		transformChanged |= ImGui::DragFloat3("Volume Translation", &translation.x, 0.5f, -1000.0f, 10000000.0f, "%.4f");
-		if (transformChanged) {
-			scale = glm::max(scale, glm::vec3(0.01f));
-			cloud.updateVolumeTransform(scale, translation);
-			parametersChanged = true;
-			p.cloudMapVolumeScale = scale;
-			p.cloudMapVolumeTranslation = translation;
-		}
-	}
-
 	if (parametersChanged)
 		cloud.MarkParametersDirty();
-
-	ImGui::End();
-
+	ImGui::PopID();
 	return parametersChanged;
 }
 
 void Editor::BeginHierarchy(Scene& scene) {
-	if (!ImGui::Begin("Scene")) {
-		ImGui::End();
-		return;
-	}
-
+	if (!ImGui::CollapsingHeader("Scene")) return;
+	ImGui::PushID("Scene");
 	GameObject* selected = scene.GetSelected();
 	for (const auto& object : scene.GetGameObjects()) {
 		ImGui::PushID(object->GetID());
 		if (ImGui::Selectable(object->GetName().c_str(), object.get() == selected)) scene.SetSelected(object->GetID());
 		ImGui::PopID();
 	}
-
-	ImGui::End();
+	ImGui::PopID();
 }
