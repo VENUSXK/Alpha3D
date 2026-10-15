@@ -40,12 +40,13 @@ void Terrain::Render(Camera& camera, const IBL& lighting, const SkyAtmosphere& a
     terrainShader.setVec3("viewPos", camera.GetPosition());
 
     terrainShader.setInt("terrainColorMap", 7);
-    terrainShader.setVec3("lightPos", parameters.lightPosition);
-    terrainShader.setVec3("light.intensity", parameters.lightIntensity);
-    terrainShader.setBool("useAerialPerspective", parameters.useAerialPerspective);
+    terrainShader.setVec3("light.direction", atmosphere.parameters.lightDirection);
+    terrainShader.setVec3("light.intensity", glm::vec3(atmosphere.parameters.lightIntensity));
+    terrainShader.setBool("useAerialPerspective", useAerialPerspective);
 
     GLint viewport[4] = {};
     glGetIntegerv(GL_VIEWPORT, viewport);
+    terrainShader.setBool("useAerialPerspective", atmosphere.parameters.useAerialPerspective);
     terrainShader.setVec3("aerialPerspectiveViewportSize", glm::vec3(float(viewport[2]), float(viewport[3]), 0.0f));
     terrainShader.setFloat("aerialPerspectiveMaxDistance", atmosphere.parameters.aerialPerspectiveMaxDistance);
     terrainShader.setInt("aerialPerspectiveSliceCount", glm::max(atmosphere.parameters.aerialPerspectiveSize, 1));

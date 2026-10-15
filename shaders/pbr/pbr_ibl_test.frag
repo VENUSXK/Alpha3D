@@ -1,7 +1,17 @@
 #version 330 core
 #define PI 3.14159265358979323846
 
+uniform bool useSurfaceShadow;
+uniform mat4 shadowViewProjection;
+uniform sampler2DShadow surfaceShadowMap;
+
+// aerial perspective
 uniform mat3 environmentRotation;
+uniform bool useAerialPerspective;
+uniform sampler3D aerialPerspectiveVolume;
+uniform vec3 aerialPerspectiveViewportSize;
+uniform float aerialPerspectiveMaxDistance;
+uniform int aerialPerspectiveSliceCount;
 
 // material
 
@@ -31,6 +41,8 @@ uniform float metallic;
 in mat3 TBN;
 
 uniform vec3 lightPos;
+uniform bool useDirectionalLight;
+uniform vec3 sunDirection;
 uniform vec3 viewPos;
 
 float calculateAttenuation(float distance){
@@ -74,7 +86,9 @@ void main()
     vec3 albedo = baseColor;
     vec3 normal = normalize(Normal);
 
-    vec3 light_dir = normalize(lightPos - FragPos);
+    vec3 light_dir = useDirectionalLight
+        ? normalize(sunDirection)
+        : normalize(lightPos - FragPos);
     vec3 view_dir    = normalize(viewPos - FragPos);
     vec3 half_dir = normalize(light_dir + view_dir);
 
@@ -96,14 +110,18 @@ void main()
     // pbr diffuse
     vec3 BRDF_diffuse = albedo / PI * (1 - fresnel);
 
-    float distance = length(lightPos - FragPos);
-    float attenuation = calculateAttenuation(distance);
+    vec3 radiance = light.intensity;
+    if (!useDirectionalLight) {
+        float distance = length(lightPos - FragPos);
+        radiance *= calculateAttenuation(distance);
+    }
 
-    vec3 radiance = light.intensity * attenuation;
-
-    vec3 L0 = (BRDF_specular + BRDF_diffuse) * radiance * NdotL;
-
-
+    // vec3 L0 = (BRDF_specular + BRDF_diffuse) * radiance * NdotL;
+    vec4 shadowPosition = shadowViewProjection * vec4(FragPos, 1.0);
+    vec3 shadowCoordinates = shadowPosition.xyz / shadowPosition.w * 0.5 + 0.5;
+    bool insideShadowMap = all(greaterThanEqual(shadowCoordinates, vec3(0.0))) && all(lessThanEqual(shadowCoordinates, vec3(1.0)));
+    float sunVisibility = useSurfaceShadow && insideShadowMap ? texture(surfaceShadowMap, vec3(shadowCoordinates.xy, shadowCoordinates.z)) : 1.0;
+    vec3 L0 = (BRDF_specular + BRDF_diffuse) * radiance * NdotL * sunVisibility;
 
     // ibl diffuse
     vec3 kS_ibl = fresnelSchlickRoughness(NdotV, F0, roughness);
@@ -127,10 +145,15 @@ void main()
 
     vec3 ambient = (kD * diffuse + specular);
 
-    // result
-    
-    vec3 color = (L0 + ambient) / ((L0 + ambient) + 1.0f);
-    color = pow(color, vec3(1.0/2.2)); 
-
+    vec3 color = L0 + ambient;
+    if (useAerialPerspective) {
+        float normalizedDistance = clamp(length(FragPos - viewPos) / max(aerialPerspectiveMaxDistance, 1e-6), 0.0, 1.0);
+        float firstSlice = 0.5 / float(max(aerialPerspectiveSliceCount, 1));
+        vec4 scatteredLight = texture(aerialPerspectiveVolume, vec3(gl_FragCoord.xy / aerialPerspectiveViewportSize.xy, clamp(sqrt(normalizedDistance), firstSlice, 1.0 - firstSlice)));
+        scatteredLight *= clamp(normalizedDistance / (firstSlice * firstSlice), 0.0, 1.0);
+        color = scatteredLight.rgb + color * (1.0 - scatteredLight.a);
+    }
+    color = color / (color + vec3(1.0));
+    color = pow(max(color, vec3(0.0)), vec3(1.0 / 2.2));
     FragColor = vec4(color, 1.0);
 }

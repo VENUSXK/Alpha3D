@@ -174,6 +174,11 @@ void Editor::RenderMaterialPreview(const IBL& ibl, Camera& camera)
 	const glm::mat4 projection = glm::perspective(glm::radians(15.0f), float(preview.width) / float(preview.height), 0.1f, 20.0f);
 
 	ibl.Bind(preview.shader);
+	preview.shader.setBool("useSurfaceShadow", false);
+	preview.shader.setInt("surfaceShadowMap", 13);
+
+	preview.shader.setBool("useAerialPerspective", false);
+	preview.shader.setInt("aerialPerspectiveVolume", 12);
 
 	const glm::mat4 view = glm::lookAt(cameraPosition, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 	preview.shader.setMat4("view", view);
@@ -284,12 +289,7 @@ void Editor::BeginFrame() {
     ImGui::NewFrame();
 }
 void Editor::BeginTerrain(Terrain& terrain) {
-	TerrainParams& parameters = terrain.parameters;
 	if (!ImGui::CollapsingHeader("Terrain")) return;
-	ImGui::PushID("Terrain");
-	ImGui::DragFloatRange2("Rock Grayscale Range", &parameters.marbleToDarkThreshold, &parameters.darkToRockyThreshold, 0.001f, 0.05f, 0.95f, "Marble / Dark: %.3f", "Dark / Rocky: %.3f");
-	ImGui::DragFloatRange2("Grayscale Range", &parameters.rockThreshold, &parameters.grassThreshold, 0.001f, 0.001f, 0.999f, "Rock: %.3f", "Grass: %.3f");
-	ImGui::PopID();
 }
 
 
@@ -361,11 +361,6 @@ void Editor::BeginDetails(GameObject& game_object) {
 	glm::vec3 scale = transform.scale;
 	if (ImGui::DragFloat3("Scale##scale", &scale.x, 0.05f, -FLT_MAX, +FLT_MAX, "%.3f"))
 		transform.SetScale(scale);
-	ImGui::SeparatorText("Animate");
-	ImGui::Text("Rotation Speed:");
-	ImGui::SliderFloat("X##rotate_speed_x", &game_object.rotate_speed_x, -90.0f, 90.0f, "%.0f deg/s");
-	ImGui::SliderFloat("Y##rotate_speed_y", &game_object.rotate_speed_y, -90.0f, 90.0f, "%.0f deg/s");
-	ImGui::SliderFloat("Z##rotate_speed_z", &game_object.rotate_speed_z, -90.0f, 90.0f, "%.0f deg/s");
 	ImGui::SeparatorText("Inspector");
 	if (game_object.light) {
 		ImGui::Text("Light:");
@@ -373,15 +368,15 @@ void Editor::BeginDetails(GameObject& game_object) {
 		ImGui::ColorEdit3("Color##1", (float*)&(*game_object.light).color, ImGuiColorEditFlags_DisplayRGB | ImGuiColorEditFlags_Float);
 		ImGui::SliderScalar("Intensity", ImGuiDataType_Float, &(*game_object.light).intensity, &light_intensity_low, &light_intensity_high, "%.1f lm");
 	}
-	if (game_object.pbr_sphere) {
+	if (game_object.pbr_custom_component) {
 		ImGui::Text("PBR Parameters:");
 		static float pbr_roughness_low = 0.01f, pbr_roughness_high = 1.0f;
 		static float pbr_metallic_low = 0.0f, pbr_metallic_high = 1.0f;
-		ImGui::ColorEdit3("Albedo##pbr_albedo", (float*)&(*game_object.pbr_sphere).albedo, ImGuiColorEditFlags_DisplayRGB | ImGuiColorEditFlags_Float);
-		ImGui::SliderScalar("Roughness", ImGuiDataType_Float, &(*game_object.pbr_sphere).roughness, &pbr_roughness_low, &pbr_roughness_high, "%.2f");
-		ImGui::SliderScalar("Metallic", ImGuiDataType_Float, &(*game_object.pbr_sphere).metallic, &pbr_metallic_low, &pbr_metallic_high, "%.2f");
+		ImGui::ColorEdit3("Albedo##pbr_albedo", (float*)&(*game_object.pbr_custom_component).albedo, ImGuiColorEditFlags_DisplayRGB | ImGuiColorEditFlags_Float);
+		ImGui::SliderScalar("Roughness", ImGuiDataType_Float, &(*game_object.pbr_custom_component).roughness, &pbr_roughness_low, &pbr_roughness_high, "%.2f");
+		ImGui::SliderScalar("Metallic", ImGuiDataType_Float, &(*game_object.pbr_custom_component).metallic, &pbr_metallic_low, &pbr_metallic_high, "%.2f");
 	}
-	if (!game_object.light && !game_object.pbr_sphere) {
+	if (!game_object.light && !game_object.pbr_custom_component) {
 		ImGui::Text("This object has no specific properties.");
 	}
 	ImGui::PopID();
@@ -555,6 +550,7 @@ bool Editor::BeginSkyAtmosphere(SkyAtmosphere& sky) {
 	parametersChanged |= ImGui::Checkbox("Use Transmittance LUT", &p.useTransmittanceLUT);
 	parametersChanged |= ImGui::Checkbox("Use Sky-View LUT", &p.useSkyViewLUT);
 	ImGui::SeparatorText("Aerial Perspective");
+	parametersChanged |= ImGui::Checkbox("Use Aerial Perspective", &p.useAerialPerspective);
 	float mieCoefficient = p.mieBeta.x * 1000000.0f;
 	if (ImGui::SliderFloat("Mie Coefficient", &mieCoefficient, 0.0f, 200.0f, "%.1f")) {
 		p.mieBeta = glm::vec3(mieCoefficient * 0.000001f);

@@ -12,7 +12,7 @@ struct LightComponent {
     float intensity = 5.0f;
 };
 
-struct PBRTestComponent {
+struct PBRCustomComponent {
     glm::vec3 albedo = glm::vec3(0.5f, 0.5f, 0.5f);
     float roughness = 0.1f;
     float metallic = 1.0f;
@@ -22,12 +22,8 @@ class GameObject {
 public:
     void Draw(Shader& overrideShader) const;
 
-    float rotate_speed_x;
-    float rotate_speed_y;
-    float rotate_speed_z;
-
     std::optional<LightComponent> light;
-    std::optional<PBRTestComponent> pbr_sphere;
+    std::optional<PBRCustomComponent> pbr_custom_component;
 
     GameObject(uint32_t id, std::string name, Model* model, Shader* shader);
 
@@ -38,6 +34,7 @@ public:
     // Transform
     Transform& GetTransform() { return transform; }
     const Transform& GetTransform() const { return transform; }
+    const std::array<glm::vec3, 8>& GetCorners() const { return transform.worldCorners; }
 
     void SetPosition(const glm::vec3& pos) { transform.SetPosition(pos); }
     void SetRotation(const glm::vec3& rot) { transform.SetRotation(rot); }
@@ -55,6 +52,7 @@ public:
     void ResetTransform() { transform.Reset(); }
 
     // Shader
+    Model* GetModel() const { return model; }
     Shader* GetShader() const { return shader; }
     void SetShader(Shader* shader) { this->shader = shader; }
 
@@ -66,7 +64,6 @@ public:
     // Draw
     void Draw() const;
 
-    void Update();
 private:
 
 

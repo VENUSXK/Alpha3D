@@ -27,7 +27,7 @@ uniform Material material;
 
 // light
 struct Light {
-    vec3 position;
+    vec3 direction;
     vec3 intensity;
 };
 
@@ -179,12 +179,12 @@ void main()
     float gridMask = 1.0 - smoothstep(gridRadius - gridBlendWidth, gridRadius, length(gridPosition));
 
     albedo = mix(albedo, gridColor, gridMask);
-    roughness = mix(roughness, 0.3, gridMask);
+    roughness = mix(roughness, 0.8, gridMask);
     metallic = mix(metallic, 0.0, gridMask);
     normal = normalize(mix(normal, normalize(Normal), gridMask));
 
 
-    vec3 light_dir = normalize(lightPos - FragPos);
+    vec3 light_dir = normalize(light.direction);
     vec3 view_dir = normalize(viewPos - FragPos);
     vec3 half_dir = normalize(light_dir + view_dir);
 
@@ -209,7 +209,8 @@ void main()
     float distance = length(lightPos - FragPos);
     float attenuation = calculateAttenuation(distance);
 
-    vec3 radiance = light.intensity * attenuation;
+    //vec3 radiance = light.intensity * attenuation;
+    vec3 radiance = light.intensity;
 
     vec3 L0 = (BRDF_specular + BRDF_diffuse) * radiance * NdotL;
 

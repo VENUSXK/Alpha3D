@@ -41,7 +41,7 @@ public:
 
     void RebuildView();
 
-    float moveSpeed = 10.0f;
+    float moveSpeed = 100.0f;
 
 private:
 

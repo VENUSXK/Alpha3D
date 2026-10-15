@@ -47,10 +47,15 @@ public:
     const std::vector<std::unique_ptr<GameObject>>& GetGameObjects() const { return game_objects; }
     void Clear();
 
-    Shader shader{ "shaders/terrain/terrain.vert", "shaders/terrain/terrain.frag" };
 
 private:
     Shader shadowShader{ "shaders/shadow/shadow.vert", "shaders/shadow/shadow.frag" };
+    Shader testShader{ "shaders/pbr/pbr_ibl_test.vert", "shaders/pbr/pbr_ibl_test.frag" };
+
+
+    std::unique_ptr<Model> testModel;
+    GameObject* testObject = nullptr;
+
     unsigned int shadowTexture = 0;
     unsigned int shadowFramebuffer = 0;
     int shadowSize = 8192;

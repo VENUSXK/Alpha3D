@@ -13,7 +13,7 @@ class Window;
 struct SkyAtmosphereParams {
     float sunLongitude = -90.0f;
     float sunLatitude = 33.4f;
-    float lightIntensity = 40.0f;
+    float lightIntensity = 20.0f;
     glm::vec3 lightDirection = glm::normalize(glm::vec3(0.0f, 0.55f, -0.84f));
     float cameraHeight = 100.0f;
 
@@ -52,6 +52,7 @@ struct SkyAtmosphereParams {
     int transmittanceLUTSteps = 64;
 
     // aerial perspective
+    bool useAerialPerspective = true;
     int aerialPerspectiveSize = 32;
     float aerialPerspectiveMaxDistance = 40000.0f;
 
@@ -76,6 +77,9 @@ public:
 
     void RenderAerialPerspectiveVolume(Camera& camera);
     void BindAerialPerspectiveVolume(unsigned int slot) const;
+
+    glm::vec3 getLightDirection() { return parameters.lightDirection; }
+    float getLightIntensity() { return parameters.lightIntensity; }
 
     unsigned int shadowTexture = 0;
     glm::mat4 shadowViewProjection = glm::mat4(1.0f);

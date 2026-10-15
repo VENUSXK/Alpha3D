@@ -1,4 +1,5 @@
 #include "scene/Scene.h"
+#include <limits>
 
 #include "components/SkyAtmosphere.h"
 #include "components/VolumetricCloud.h"
@@ -14,6 +15,7 @@
 #include "utils/RenderProfiler.h"
 
 #include "renderer/IBL.h"
+#include "scene/GameObject.h"
 
 Scene::Scene() = default;
 
@@ -21,6 +23,8 @@ Scene::~Scene() = default;
 
 void Scene::Clear() {
     game_objects.clear();
+    testObject = nullptr;
+    testModel.reset();
     selected_id = 0;
     next_id = 1;
 }
@@ -37,7 +41,17 @@ void Scene::Load(Window& window) {
     volumetric_cloud->Load(window, *this);
     terrain->Load(*this);
 
-    // shadow
+    // test object
+    testModel = std::make_unique<Model>("assets/models/stanford_dragon/scene.gltf");
+    testObject = &(this->AddGameObject("stanford_dragon", testModel.get(), &testShader));
+    testObject->pbr_custom_component = PBRCustomComponent{};
+    testObject->pbr_custom_component->albedo = glm::vec3(1.0f, 1.0f, 1.0f);
+    testObject->pbr_custom_component->metallic = 1.0f;
+
+    testObject->SetPosition(glm::vec3(0.0f, 452.73f, 0.0f));
+    testObject->SetScale(500.0f);
+
+    // shadow texture generation
     glGenTextures(1, &shadowTexture);
     glBindTexture(GL_TEXTURE_2D, shadowTexture);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, shadowSize, shadowSize, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
@@ -50,6 +64,7 @@ void Scene::Load(Window& window) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
     glBindTexture(GL_TEXTURE_2D, 0);
 
+    // shadow frame buffer generation
     glGenFramebuffers(1, &shadowFramebuffer);
     glBindFramebuffer(GL_FRAMEBUFFER, shadowFramebuffer);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, shadowTexture, 0);
@@ -60,11 +75,37 @@ void Scene::Load(Window& window) {
 
 void Scene::Render(Camera& camera, RenderProfiler& profiler) {
 
+    std::vector<glm::vec3> shadowCorners;
+    shadowCorners.reserve(16);
+    for (GameObject* object : { terrain->GetGameObject(), testObject }) {
+        if (!object || !object->GetModel()) continue;
+        const auto& corners = object->GetCorners();
+        shadowCorners.insert(shadowCorners.end(), corners.begin(), corners.end());
+    }
+    if (shadowCorners.empty()) return;
+
+    glm::vec3 shadowCenter(0.0f);
+    for (const glm::vec3& corner : shadowCorners) shadowCenter += corner;
+    shadowCenter /= float(shadowCorners.size());
+    float shadowRadius = 1.0f;
+    for (const glm::vec3& corner : shadowCorners) shadowRadius = glm::max(shadowRadius, glm::length(corner - shadowCenter));
+    float shadowMargin = glm::max(shadowRadius * 0.01f, 1.0f);
     glm::vec3 sunDirection = glm::normalize(atmosphere->parameters.lightDirection);
-    glm::vec3 shadowCenter(camera.GetPosition().x, 0.0f, camera.GetPosition().z);
     glm::vec3 shadowUp = glm::abs(sunDirection.y) > 0.99f ? glm::vec3(0.0f, 0.0f, 1.0f) : glm::vec3(0.0f, 1.0f, 0.0f);
-    glm::mat4 shadowView = glm::lookAt(shadowCenter + sunDirection * 20000.0f, shadowCenter, shadowUp);
-    glm::mat4 shadowProjection = glm::ortho(-10000.0f, 10000.0f, -10000.0f, 10000.0f, 1.0f, 40000.0f);
+    glm::mat4 shadowView = glm::lookAt(shadowCenter + sunDirection * (shadowRadius + shadowMargin + 1.0f), shadowCenter, shadowUp);
+    glm::vec3 minPosition(std::numeric_limits<float>::max());
+    glm::vec3 maxPosition(-std::numeric_limits<float>::max());
+    
+    for (const glm::vec3& corner : shadowCorners) {
+        glm::vec3 lightPosition = glm::vec3(shadowView * glm::vec4(corner, 1.0f));
+        minPosition = glm::min(minPosition, lightPosition);
+        maxPosition = glm::max(maxPosition, lightPosition);
+    }
+    
+    float nearPlane = glm::max(0.1f, -maxPosition.z - shadowMargin);
+    float farPlane = -minPosition.z + shadowMargin;
+    
+    glm::mat4 shadowProjection = glm::ortho(minPosition.x - shadowMargin, maxPosition.x + shadowMargin, minPosition.y - shadowMargin, maxPosition.y + shadowMargin, nearPlane, farPlane);
     glm::mat4 shadowViewProjection = shadowProjection * shadowView;
 
     GLint previousFramebuffer = 0, previousViewport[4] = {}, previousDepthFunction = 0;
@@ -111,6 +152,30 @@ void Scene::Render(Camera& camera, RenderProfiler& profiler) {
     atmosphere->RenderAerialPerspectiveVolume(camera);
     terrain->Render(camera, ibl, *atmosphere, profiler);
 
+    testShader.use();
+    testShader.setMat4("view", camera.GetView());
+    testShader.setMat4("projection", camera.GetProjection());
+    testShader.setVec3("viewPos", camera.GetPosition());
+
+    testShader.setBool("useDirectionalLight", true);
+    testShader.setVec3("sunDirection", atmosphere->getLightDirection());
+    testShader.setVec3("light.intensity", glm::vec3(atmosphere->getLightIntensity()));
+
+    testShader.setMat3("environmentRotation", glm::mat3(1.0f));
+    ibl.Bind(testShader);
+    testShader.setBool("useAerialPerspective", atmosphere->parameters.useAerialPerspective);
+    testShader.setVec3("aerialPerspectiveViewportSize", glm::vec3(float(previousViewport[2]), float(previousViewport[3]), 0.0f));
+    testShader.setFloat("aerialPerspectiveMaxDistance", atmosphere->parameters.aerialPerspectiveMaxDistance);
+    testShader.setInt("aerialPerspectiveSliceCount", glm::max(atmosphere->parameters.aerialPerspectiveSize, 1));
+    testShader.setInt("aerialPerspectiveVolume", 12);
+    atmosphere->BindAerialPerspectiveVolume(12);
+
+    testShader.setBool("useSurfaceShadow", true);
+    testShader.setMat4("shadowViewProjection", shadowViewProjection);
+    testShader.setInt("surfaceShadowMap", 13);
+    glActiveTexture(GL_TEXTURE13);
+    glBindTexture(GL_TEXTURE_2D, shadowTexture);
+
     for (const auto& object : game_objects) {
         if (object.get() == terrain->GetGameObject()) continue;
         if (object->GetName() == "cloudVolume") continue;
@@ -154,7 +219,6 @@ void Scene::Unload() {
     Clear();
     if (terrain) terrain->Unload();
 }
-
 
 
 GameObject& Scene::AddGameObject(std::string name, Model* model, Shader* shader) {
