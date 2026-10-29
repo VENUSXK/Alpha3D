@@ -37,7 +37,7 @@ void Scene::Load(Window& window) {
     if (!volumetric_cloud) volumetric_cloud = std::make_unique<VolumetricCloud>();
     if (!terrain) terrain = std::make_unique<Terrain>();
 
-    atmosphere->Load(window);
+    atmosphere->Load(window, sunLight);
     volumetric_cloud->Load(window, *this);
     terrain->Load(*this);
 
@@ -48,7 +48,7 @@ void Scene::Load(Window& window) {
     testObject->pbr_custom_component->albedo = glm::vec3(1.0f, 1.0f, 1.0f);
     testObject->pbr_custom_component->metallic = 1.0f;
 
-    testObject->SetPosition(glm::vec3(0.0f, 452.73f, 0.0f));
+    testObject->SetPosition(glm::vec3(0.0f, 32.0f, 0.0f));
     testObject->SetScale(500.0f);
 
     // shadow texture generation
@@ -90,7 +90,7 @@ void Scene::Render(Camera& camera, RenderProfiler& profiler) {
     float shadowRadius = 1.0f;
     for (const glm::vec3& corner : shadowCorners) shadowRadius = glm::max(shadowRadius, glm::length(corner - shadowCenter));
     float shadowMargin = glm::max(shadowRadius * 0.01f, 1.0f);
-    glm::vec3 sunDirection = glm::normalize(atmosphere->parameters.lightDirection);
+    glm::vec3 sunDirection = glm::normalize(sunLight.direction);
     glm::vec3 shadowUp = glm::abs(sunDirection.y) > 0.99f ? glm::vec3(0.0f, 0.0f, 1.0f) : glm::vec3(0.0f, 1.0f, 0.0f);
     glm::mat4 shadowView = glm::lookAt(shadowCenter + sunDirection * (shadowRadius + shadowMargin + 1.0f), shadowCenter, shadowUp);
     glm::vec3 minPosition(std::numeric_limits<float>::max());
@@ -146,26 +146,27 @@ void Scene::Render(Camera& camera, RenderProfiler& profiler) {
     atmosphere->shadowViewProjection = shadowViewProjection;
 
 
-    RenderSkyLight(camera, profiler, false);
+    RenderSky(camera, profiler, true, true);
     if (ibl.IsDirty()) ibl.Render(*this, camera, profiler);
-
-    atmosphere->RenderAerialPerspectiveVolume(camera);
-    terrain->Render(camera, ibl, *atmosphere, profiler);
+    atmosphere->RenderAerialPerspectiveVolume(camera, sunLight);
+    terrain->Render(camera, ibl, *atmosphere, sunLight, profiler);
 
     testShader.use();
     testShader.setMat4("view", camera.GetView());
     testShader.setMat4("projection", camera.GetProjection());
     testShader.setVec3("viewPos", camera.GetPosition());
+    testShader.setBool("outputLinear", true);
 
     testShader.setBool("useDirectionalLight", true);
-    testShader.setVec3("sunDirection", atmosphere->getLightDirection());
-    testShader.setVec3("light.intensity", glm::vec3(atmosphere->getLightIntensity()));
+    testShader.setVec3("sunDirection", glm::normalize(sunLight.direction));
+    testShader.setVec3("light.intensity", sunLight.color * sunLight.intensity);
 
     testShader.setMat3("environmentRotation", glm::mat3(1.0f));
     ibl.Bind(testShader);
     testShader.setBool("useAerialPerspective", atmosphere->parameters.useAerialPerspective);
     testShader.setVec3("aerialPerspectiveViewportSize", glm::vec3(float(previousViewport[2]), float(previousViewport[3]), 0.0f));
     testShader.setFloat("aerialPerspectiveMaxDistance", atmosphere->parameters.aerialPerspectiveMaxDistance);
+    testShader.setFloat("aerialPerspectiveDistanceScale", atmosphere->parameters.objectAerialPerspectiveDistanceScale);
     testShader.setInt("aerialPerspectiveSliceCount", glm::max(atmosphere->parameters.aerialPerspectiveSize, 1));
     testShader.setInt("aerialPerspectiveVolume", 12);
     atmosphere->BindAerialPerspectiveVolume(12);
@@ -181,12 +182,17 @@ void Scene::Render(Camera& camera, RenderProfiler& profiler) {
         if (object->GetName() == "cloudVolume") continue;
         object->Draw();
     }
+    RenderCloud(camera, profiler, true, true);
 }
 
 
 void Scene::RenderSkyLight(Camera& camera, RenderProfiler& profiler, bool outputLinear) {
     A3_PROFILE_PASS(profiler, "SkyLight");
+    RenderSky(camera, profiler, outputLinear, false);
+    RenderCloud(camera, profiler, false, outputLinear);
+}
 
+void Scene::RenderSky(Camera& camera, RenderProfiler& profiler, bool outputLinear, bool useSceneShadow) {
     const GLboolean depthTestEnabled = glIsEnabled(GL_DEPTH_TEST);
     const GLboolean blendEnabled = glIsEnabled(GL_BLEND);
     GLboolean depthWriteEnabled = GL_TRUE;
@@ -195,15 +201,23 @@ void Scene::RenderSkyLight(Camera& camera, RenderProfiler& profiler, bool output
     glDisable(GL_DEPTH_TEST);
     glDepthMask(GL_FALSE);
     glDisable(GL_BLEND);
-    atmosphere->Render(camera, profiler, outputLinear);
+    atmosphere->Render(camera, profiler, sunLight, outputLinear, useSceneShadow);
+    const SkyAtmosphereParams& atmosphereParameters = atmosphere->parameters;
+    if (const LUT* transmittanceLUT = atmosphere->GetTransmittanceLUT()) {
+        float observerHeight = atmosphereParameters.cameraHeight + camera.GetPosition().y;
+        sunLight.UpdateColorFromTransmittanceLUT(*transmittanceLUT, observerHeight, atmosphereParameters.planetRadius, atmosphereParameters.atmosphereRadius);
+    }
 
     glDepthMask(depthWriteEnabled);
     if (depthTestEnabled) glEnable(GL_DEPTH_TEST); else glDisable(GL_DEPTH_TEST);
+    if (blendEnabled) glEnable(GL_BLEND); else glDisable(GL_BLEND);
+}
 
+void Scene::RenderCloud(Camera& camera, RenderProfiler& profiler, bool useAerialPerspective, bool outputLinear) {
+    const GLboolean blendEnabled = glIsEnabled(GL_BLEND);
     glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    volumetric_cloud->Render(camera, profiler);
-
+    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+    volumetric_cloud->Render(camera, profiler, sunLight, *atmosphere, useAerialPerspective, outputLinear);
     if (blendEnabled) glEnable(GL_BLEND); else glDisable(GL_BLEND);
 }
 
@@ -233,7 +247,8 @@ GameObject* Scene::GetSelected() {
 
 void Scene::RenderEditor(Editor& editor, Camera& camera) {
     editor.RenderMaterialPreview(this->GetIBL(), camera);
-    editor.BeginSkyAtmosphere(*atmosphere);
+    if (editor.BeginSunLight(sunLight)) atmosphere->MarkParametersDirty();
+    if (editor.BeginSkyAtmosphere(*atmosphere)) sunLight.MarkColorDirty();
     editor.BeginVolumetricCloud(*volumetric_cloud);
     editor.BeginIBL(ibl);
     editor.BeginHierarchy(*this);

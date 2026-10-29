@@ -11,9 +11,12 @@ class Camera;
 class Scene;
 class IBL;
 class SkyAtmosphere;
+class SunLight;
 class VolumetricCloud;
 class RenderProfiler;
 class Terrain;
+class PostProcess;
+class Capture;
 
 #include "renderer/Model.h"
 #include "renderer/Shader.h"
@@ -51,9 +54,12 @@ public:
     bool Hover() const;
     bool WantCaptureKeyboard() const;
     void BeginCamera(Camera& camera);
+    bool BeginSunLight(SunLight& sunLight);
     bool BeginSkyAtmosphere(SkyAtmosphere& sky);
     bool BeginVolumetricCloud(VolumetricCloud& cloud);
     void BeginIBL(IBL& ibl);
+    void BeginPostProcess(PostProcess& postProcess);
+    void BeginCapture(Capture& capture);
     void BeginPerformance(RenderProfiler& profiler);
     bool HasPerformanceAffectingEdit() const;
 

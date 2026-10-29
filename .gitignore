@@ -15,3 +15,5 @@ generated
 .generated
 tmp
 assets/models
+captures
+.agent

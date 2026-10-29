@@ -11,11 +11,12 @@ class IBL;
 class RenderProfiler;
 class Scene;
 class SkyAtmosphere;
+class SunLight;
 
 class Terrain {
 public:
     void Load(Scene& scene);
-    void Render(Camera& camera, const IBL& lighting, const SkyAtmosphere& atmosphere, RenderProfiler& profiler);
+    void Render(Camera& camera, const IBL& lighting, const SkyAtmosphere& atmosphere, const SunLight& sunLight, RenderProfiler& profiler);
     void Unload();
     GameObject* GetGameObject() const { return terrainObject; }
     Shader terrainShader = Shader("shaders/terrain/terrain.vert", "shaders/terrain/terrain.frag");

@@ -4,10 +4,12 @@
 class Camera;
 class Viewport {
 public:
+    ~Viewport();
     void Init(float width, float height);
     void Resize(float width, float height);
     void BeginRender();
     void EndRender();
+    void Unload();
     GLuint GetFBOId() const { return this->fboID; }
     GLuint GetColorTexture() const { return colorTexture; }
     float GetWidth() const { return width; }

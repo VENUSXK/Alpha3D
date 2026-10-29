@@ -11,6 +11,7 @@ uniform bool useAerialPerspective;
 uniform sampler3D aerialPerspectiveVolume;
 uniform vec3 aerialPerspectiveViewportSize;
 uniform float aerialPerspectiveMaxDistance;
+uniform float aerialPerspectiveDistanceScale;
 uniform int aerialPerspectiveSliceCount;
 
 // material
@@ -25,6 +26,7 @@ struct Light {
 uniform samplerCube irradianceMap;
 uniform samplerCube prefilterMap;
 uniform sampler2D   brdfLUT;  
+uniform bool outputLinear;
 
 uniform Light light;
 
@@ -147,13 +149,16 @@ void main()
 
     vec3 color = L0 + ambient;
     if (useAerialPerspective) {
-        float normalizedDistance = clamp(length(FragPos - viewPos) / max(aerialPerspectiveMaxDistance, 1e-6), 0.0, 1.0);
+        float effectiveDistance = length(FragPos - viewPos) * max(aerialPerspectiveDistanceScale, 0.0);
+        float normalizedDistance = clamp(effectiveDistance / max(aerialPerspectiveMaxDistance, 1e-6), 0.0, 1.0);
         float firstSlice = 0.5 / float(max(aerialPerspectiveSliceCount, 1));
         vec4 scatteredLight = texture(aerialPerspectiveVolume, vec3(gl_FragCoord.xy / aerialPerspectiveViewportSize.xy, clamp(sqrt(normalizedDistance), firstSlice, 1.0 - firstSlice)));
         scatteredLight *= clamp(normalizedDistance / (firstSlice * firstSlice), 0.0, 1.0);
         color = scatteredLight.rgb + color * (1.0 - scatteredLight.a);
     }
-    color = color / (color + vec3(1.0));
-    color = pow(max(color, vec3(0.0)), vec3(1.0 / 2.2));
+    if (!outputLinear) {
+        color = color / (color + vec3(1.0));
+        color = pow(max(color, vec3(0.0)), vec3(1.0 / 2.2));
+    }
     FragColor = vec4(color, 1.0);
 }

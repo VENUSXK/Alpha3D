@@ -6,6 +6,6 @@ nearClip = 0.0
 [window]
 height = 800
 monitorCenterX = 1280
-monitorCenterY = -720
+monitorCenterY = 800
 title = 'Alpha3D'
 width = 1600

@@ -28,11 +28,14 @@
     <ClCompile Include="src\core\Viewport.cpp" />
     <ClCompile Include="src\core\Window.cpp" />
     <ClCompile Include="src\renderer\Camera.cpp" />
+    <ClCompile Include="src\renderer\Capture.cpp" />
     <ClCompile Include="src\renderer\IBL.cpp" />
     <ClCompile Include="src\renderer\LUT.cpp" />
     <ClCompile Include="src\renderer\Mesh.cpp" />
     <ClCompile Include="src\renderer\Model.cpp" />
+    <ClCompile Include="src\renderer\PostProcess.cpp" />
     <ClCompile Include="src\renderer\Shader.cpp" />
+    <ClCompile Include="src\components\SunLight.cpp" />
     <ClCompile Include="src\renderer\Texture.cpp" />
     <ClCompile Include="src\components\SkyAtmosphere.cpp" />
     <ClCompile Include="src\components\VolumetricCloud.cpp" />
@@ -61,6 +64,8 @@
     <None Include="shaders\pbr\prefilter_convolution.vert" />
     <None Include="shaders\pbr\skybox.frag" />
     <None Include="shaders\pbr\skybox.vert" />
+    <None Include="shaders\post_process\full_screen.vert" />
+    <None Include="shaders\post_process\post_process.frag" />
     <None Include="shaders\phong.frag" />
     <None Include="shaders\phong.vert" />
     <None Include="shaders\sky_atmosphere\full_screen.vert" />
@@ -82,11 +87,14 @@
     <ClInclude Include="include\core\Viewport.h" />
     <ClInclude Include="include\core\Window.h" />
     <ClInclude Include="include\renderer\Camera.h" />
+    <ClInclude Include="include\renderer\Capture.h" />
     <ClInclude Include="include\renderer\IBL.h" />
     <ClInclude Include="include\renderer\LUT.h" />
     <ClInclude Include="include\renderer\Mesh.h" />
     <ClInclude Include="include\renderer\Model.h" />
+    <ClInclude Include="include\renderer\PostProcess.h" />
     <ClInclude Include="include\renderer\Shader.h" />
+    <ClInclude Include="include\components\SunLight.h" />
     <ClInclude Include="include\renderer\Texture.h" />
     <ClInclude Include="include\components\SkyAtmosphere.h" />
     <ClInclude Include="include\components\VolumetricCloud.h" />
@@ -126,7 +134,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">

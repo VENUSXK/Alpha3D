@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "renderer/IBL.h"
+#include "components/SunLight.h"
 
 class Camera;
 class Editor;
@@ -34,6 +35,8 @@ public:
 
     const IBL& GetIBL() const { return ibl; }
     IBL& GetIBL() { return ibl; }
+    const SunLight& GetSunLight() const { return sunLight; }
+    SunLight& GetSunLight() { return sunLight; }
     const std::string& GetName() const { return name; }
     SkyAtmosphere& GetAtmosphere();
     const SkyAtmosphere& GetAtmosphere() const;
@@ -49,6 +52,9 @@ public:
 
 
 private:
+    void RenderSky(Camera& camera, RenderProfiler& profiler, bool outputLinear, bool useSceneShadow);
+    void RenderCloud(Camera& camera, RenderProfiler& profiler, bool useAerialPerspective, bool outputLinear);
+
     Shader shadowShader{ "shaders/shadow/shadow.vert", "shaders/shadow/shadow.frag" };
     Shader testShader{ "shaders/pbr/pbr_ibl_test.vert", "shaders/pbr/pbr_ibl_test.frag" };
 
@@ -64,6 +70,7 @@ private:
     std::unique_ptr<SkyAtmosphere> atmosphere;
     std::unique_ptr<VolumetricCloud> volumetric_cloud;
     std::unique_ptr<Terrain> terrain;
+    SunLight sunLight;
 
     uint32_t selected_id = 0;
     uint32_t next_id = 1;

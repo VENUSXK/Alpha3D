@@ -96,8 +96,8 @@ void Window::Init(int width, int height, int monitorCenterX, int monitorCenterY,
     this->height = height;
     this->title = title;
 
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     //glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);

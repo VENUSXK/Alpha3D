@@ -18,7 +18,10 @@
 #include "scene/Scene.h"
 
 #include "core/Time.h"
+#include "core/Viewport.h"
 #include "renderer/Camera.h"
+#include "renderer/Capture.h"
+#include "renderer/PostProcess.h"
 #include "utils/RenderProfiler.h"
 
 
@@ -32,12 +35,19 @@ int main()
     Window window;
     window.Init(config.window.width, config.window.height, config.window.monitorCenterX,
         config.window.monitorCenterY, config.window.hasMonitorCenter, config.window.title);
+    if (!window.GetGLFWWindow()) return -1;
 
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
     {
         LOG_ERROR("Failed to initialize GLAD");
         return -1;
     }
+    if (!GLAD_GL_VERSION_4_6) {
+        LOG_ERROR("OpenGL 4.6 is not supported by the current GPU driver");
+        return -1;
+    }
+    LOG_INFO("OpenGL version: {}", reinterpret_cast<const char*>(glGetString(GL_VERSION)));
+    LOG_INFO("OpenGL renderer: {}", reinterpret_cast<const char*>(glGetString(GL_RENDERER)));
 
     Editor editor;
     editor.Init(&window);
@@ -50,8 +60,12 @@ int main()
         scene.Load(window);
     }
 
-    Camera camera(config.renderer.fov, window, glm::vec3(-0.0f, 450.0f, -0.0f), glm::vec3(0.0f, 0.0f, -1.0f), 415.44f);
+    Camera camera(config.renderer.fov, window, glm::vec3(-0.0f, 10.0f, -0.0f), glm::vec3(0.0f, 0.0f, -1.0f), 0.0f);
     window.SetCamera(&camera);
+    Viewport hdrViewport;
+    hdrViewport.Init(static_cast<float>(config.window.width), static_cast<float>(config.window.height));
+    PostProcess postProcess;
+    Capture capture;
 
     while (!window.ShouldClose())
     {
@@ -65,11 +79,16 @@ int main()
         if (framebufferWidth > 0 && framebufferHeight > 0) {
             A3_PROFILE_PASS(profiler, "Scene");
             camera.SetProjection(camera.GetFov(), static_cast<float>(framebufferWidth) / static_cast<float>(framebufferHeight));
+            hdrViewport.Resize(static_cast<float>(framebufferWidth), static_cast<float>(framebufferHeight));
+            hdrViewport.BeginRender();
+            scene.Render(camera, profiler);
+            hdrViewport.EndRender();
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
             glViewport(0, 0, framebufferWidth, framebufferHeight);
             glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-            scene.Render(camera, profiler);
+            postProcess.Render(hdrViewport.GetColorTexture());
+            if (capture.HasPendingRequest()) capture.CaptureFrame(scene, camera, postProcess, profiler, framebufferWidth, framebufferHeight);
         }
 
         // Editor
@@ -79,6 +98,8 @@ int main()
             if (ImGui::Begin("Editor")) {
                 editor.BeginPerformance(profiler);
                 editor.BeginCamera(camera);
+                editor.BeginPostProcess(postProcess);
+                editor.BeginCapture(capture);
                 scene.RenderEditor(editor, camera);
                 if (editor.HasPerformanceAffectingEdit()) profiler.ResetFrameHistory();
             }

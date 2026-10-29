@@ -143,15 +143,13 @@ void main()
 
     if(isLight){
         float emissive = texture(material.emissive_1, TexCoords).r;
-        emissive = pow(emissive, 2.2); // sRGB ×ªÏßÐÔ
+        emissive = pow(emissive, 2.2); // sRGB è½¬çº¿æ€§
         vec3 emissiveColor = emissive * emissiveIntensity;
-        color += emissiveColor; // ÏÈ¼Ó emissive
+        color += emissiveColor; // å…ˆåŠ  emissive
     }
 
     // result
     
-    color = color / (color + vec3(1.0));       // ÔÙ tonemap
-    color = pow(color, vec3(1.0/2.2));         // gamma
     FragColor = vec4(color, 1.0);
 
 }

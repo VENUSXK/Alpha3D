@@ -12,6 +12,7 @@ uniform sampler3D aerialPerspectiveVolume;
 
 uniform vec3 aerialPerspectiveViewportSize;
 uniform float aerialPerspectiveMaxDistance;
+uniform float aerialPerspectiveDistanceScale;
 uniform int aerialPerspectiveSliceCount;
 
 uniform sampler2D terrainColorMap;
@@ -94,18 +95,18 @@ vec3 ApplyAerialPerspective(vec3 surfaceColor)
     if (!useAerialPerspective || aerialPerspectiveMaxDistance <= 0.0) return surfaceColor;
 
     vec2 screenUV = gl_FragCoord.xy / aerialPerspectiveViewportSize.xy;
-    float distanceToCamera = length(FragPos - viewPos);
+    float effectiveDistance = length(FragPos - viewPos) * max(aerialPerspectiveDistanceScale, 0.0);
 
     float sliceCount = float(max(aerialPerspectiveSliceCount, 1));
     float firstSlice = 0.5 / sliceCount;
     float lastSlice = 1.0 - firstSlice;
 
-    float slice = sqrt(clamp(distanceToCamera / aerialPerspectiveMaxDistance, 0.0, 1.0));
+    float slice = sqrt(clamp(effectiveDistance / aerialPerspectiveMaxDistance, 0.0, 1.0));
 
     vec4 aerialPerspective = texture(aerialPerspectiveVolume, vec3(screenUV, clamp(slice, firstSlice, lastSlice)));
 
     float firstSliceDepth = aerialPerspectiveMaxDistance * firstSlice * firstSlice;
-    float nearWeight = clamp(distanceToCamera / max(firstSliceDepth, 1e-6), 0.0, 1.0);
+    float nearWeight = clamp(effectiveDistance / max(firstSliceDepth, 1e-6), 0.0, 1.0);
 
     aerialPerspective *= nearWeight;
 
@@ -162,7 +163,7 @@ void main()
     vec3 albedo = texture(terrainColorMap, terrainUV).rgb;
     vec3 normal = normalize(Normal);
     float ao = 1.0;
-    float roughness = 0.8;
+    float roughness = 1.0;
     float metallic = 0.0;
 
     // center grid
@@ -244,9 +245,6 @@ void main()
     }
 
     color = ApplyAerialPerspective(color);
-
-    color = color / (color + vec3(1.0));
-    color = pow(max(color, vec3(0.0)), vec3(1.0 / 2.2));
 
     FragColor = vec4(color, 1.0);
 

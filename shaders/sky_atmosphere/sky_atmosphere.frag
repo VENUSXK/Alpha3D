@@ -20,6 +20,7 @@ uniform bool useTransmittanceLUT;
 uniform bool useSkyViewLUT;
 
 uniform vec3 lightDirection;
+uniform vec3 lightColor;
 uniform float lightIntensity;
 
 uniform float cameraHeight;
@@ -277,7 +278,7 @@ SingleScatteringResult integrateAtmosphereScattering(vec3 rayOrigin, vec3 rayDir
     }
 
     result.transmittance = exp(-Extinction(opticalDepth));
-    result.scatteredLight = (rayleighPhase * rayleighBeta * totalRayleigh + miePhase * mieBeta * totalMie) * lightIntensity;
+    result.scatteredLight = (rayleighPhase * rayleighBeta * totalRayleigh + miePhase * mieBeta * totalMie) * lightColor * lightIntensity;
     return result;
 }
 
@@ -303,7 +304,7 @@ vec4 SingleScattering() {
         sceneColor = vec3(0.008, 0.012, 0.006) * (0.08 + 0.25 * diffuse);
     }
     else if (dot(viewDirection, sunDirection) > 0.9997) {
-        sceneColor = vec3(3.0);
+        sceneColor = lightColor * 3.0;
     }
 
     SingleScatteringResult result = integrateAtmosphereScattering(atmosphereCamera, viewDirection, sceneDepth, sunDirection);

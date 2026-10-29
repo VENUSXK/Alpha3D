@@ -4,6 +4,7 @@
 #include "core/opengl.h"
 #include "renderer/Camera.h"
 #include "renderer/IBL.h"
+#include "components/SunLight.h"
 #include "renderer/Texture.h"
 #include "scene/GameObject.h"
 #include "scene/Scene.h"
@@ -21,7 +22,7 @@ void Terrain::Load(Scene& scene) {
 
     terrainModel = std::make_unique<Model>("assets/terrain/height-map.glb");
     terrainObject = &scene.AddGameObject("Terrain", terrainModel.get(), &terrainShader);
-    terrainObject->SetPosition(glm::vec3(-4000.0f, 0.0f, 4000.0f));
+    terrainObject->SetPosition(glm::vec3(-4000.0f, -415.44f, 4000.0f));
     terrainObject->SetScale(1.0f);
 }
 
@@ -31,7 +32,7 @@ void Terrain::BindTextures() const {
     glActiveTexture(GL_TEXTURE0);
 }
 
-void Terrain::Render(Camera& camera, const IBL& lighting, const SkyAtmosphere& atmosphere, RenderProfiler& profiler) {
+void Terrain::Render(Camera& camera, const IBL& lighting, const SkyAtmosphere& atmosphere, const SunLight& sunLight, RenderProfiler& profiler) {
     if (!terrainObject || !terrainColorTexture) return;
     A3_PROFILE_PASS(profiler, "Terrain");
     lighting.Bind(terrainShader);
@@ -40,8 +41,8 @@ void Terrain::Render(Camera& camera, const IBL& lighting, const SkyAtmosphere& a
     terrainShader.setVec3("viewPos", camera.GetPosition());
 
     terrainShader.setInt("terrainColorMap", 7);
-    terrainShader.setVec3("light.direction", atmosphere.parameters.lightDirection);
-    terrainShader.setVec3("light.intensity", glm::vec3(atmosphere.parameters.lightIntensity));
+    terrainShader.setVec3("light.direction", glm::normalize(sunLight.direction));
+    terrainShader.setVec3("light.intensity", sunLight.color * sunLight.intensity);
     terrainShader.setBool("useAerialPerspective", useAerialPerspective);
 
     GLint viewport[4] = {};
@@ -49,6 +50,7 @@ void Terrain::Render(Camera& camera, const IBL& lighting, const SkyAtmosphere& a
     terrainShader.setBool("useAerialPerspective", atmosphere.parameters.useAerialPerspective);
     terrainShader.setVec3("aerialPerspectiveViewportSize", glm::vec3(float(viewport[2]), float(viewport[3]), 0.0f));
     terrainShader.setFloat("aerialPerspectiveMaxDistance", atmosphere.parameters.aerialPerspectiveMaxDistance);
+    terrainShader.setFloat("aerialPerspectiveDistanceScale", atmosphere.parameters.objectAerialPerspectiveDistanceScale);
     terrainShader.setInt("aerialPerspectiveSliceCount", glm::max(atmosphere.parameters.aerialPerspectiveSize, 1));
     terrainShader.setInt("aerialPerspectiveVolume", 12);
 

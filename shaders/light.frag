@@ -125,8 +125,6 @@ void main()
     vec3 emissive_final = lightOn ? emissiveColor : vec3(0.0);
 
     vec3 color = L0_final + ambient + emissive_final;
-    color = color / (color + vec3(1.0));
-    color = pow(color, vec3(1.0/2.2));
     FragColor = vec4(color, 1.0);
 
 }

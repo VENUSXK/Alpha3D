@@ -3,6 +3,7 @@
 #include "core/Log.h"
 #include "core/opengl.h"
 #include "renderer/Camera.h"
+#include "components/SunLight.h"
 #include "utils/RenderProfiler.h"
 
 
@@ -24,14 +25,15 @@ void SetAtmosphereUniforms(const Shader& shader, const SkyAtmosphereParams& para
     shader.setFloat("absorptionFalloff", parameters.absorptionFalloff);
 }
 
-void SetScatteringUniforms(const Shader& shader, const SkyAtmosphereParams& parameters) {
+void SetScatteringUniforms(const Shader& shader, const SkyAtmosphereParams& parameters, const SunLight& sunLight) {
     shader.setBool("useTransmittanceLUT", parameters.useTransmittanceLUT);
     shader.setBool("useSkyViewLUT", parameters.useSkyViewLUT);
     shader.setInt("transmittanceLUT", 0);
     shader.setInt("skyViewLUT", 1);
 
-    shader.setFloat("lightIntensity", parameters.lightIntensity);
-    shader.setVec3("lightDirection", glm::normalize(parameters.lightDirection));
+    shader.setFloat("lightIntensity", sunLight.intensity);
+    shader.setVec3("lightColor", sunLight.baseColor);
+    shader.setVec3("lightDirection", glm::normalize(sunLight.direction));
 
     shader.setFloat("cameraHeight", parameters.cameraHeight);
     shader.setFloat("mieG", parameters.mieG);
@@ -66,7 +68,7 @@ void SkyAtmosphere::AllocateAerialPerspectiveVolume() {
     allocatedAerialPerspectiveSize = size;
 }
 
-void SkyAtmosphere::RenderAerialPerspectiveVolume(Camera& camera) {
+void SkyAtmosphere::RenderAerialPerspectiveVolume(Camera& camera, const SunLight& sunLight) {
     AllocateAerialPerspectiveVolume();
 
     GLint previousDrawFramebuffer = 0;
@@ -92,7 +94,7 @@ void SkyAtmosphere::RenderAerialPerspectiveVolume(Camera& camera) {
 
     shader_sky_atmosphere.use();
     SetAtmosphereUniforms(shader_sky_atmosphere, parameters);
-    SetScatteringUniforms(shader_sky_atmosphere, parameters);
+    SetScatteringUniforms(shader_sky_atmosphere, parameters, sunLight);
 
     shader_sky_atmosphere.setMat4("invProjection", glm::inverse(camera.GetProjection()));
     shader_sky_atmosphere.setMat4("invView", glm::inverse(camera.GetView()));
@@ -101,6 +103,7 @@ void SkyAtmosphere::RenderAerialPerspectiveVolume(Camera& camera) {
     shader_sky_atmosphere.setInt("MODE", 3);
     shader_sky_atmosphere.setInt("aerialPerspectiveSliceCount", allocatedAerialPerspectiveSize);
     shader_sky_atmosphere.setFloat("aerialPerspectiveMaxDistance", parameters.aerialPerspectiveMaxDistance);
+    shader_sky_atmosphere.setInt("aerialPerspectiveSteps", parameters.aerialPerspectiveSteps);
     if (const LUT* lut = GetLUT("transmittance_lut.png")) lut->Bind(0);
 
     shader_sky_atmosphere.setBool("useVolumeShadow", shadowTexture != 0);
@@ -122,7 +125,6 @@ void SkyAtmosphere::RenderAerialPerspectiveVolume(Camera& camera) {
     }
 
     shader_sky_atmosphere.setInt("MODE", 0);
-    shader_sky_atmosphere.setInt("aerialPerspectiveSteps", parameters.aerialPerspectiveSteps);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, previousDrawFramebuffer);
     glBindFramebuffer(GL_READ_FRAMEBUFFER, previousReadFramebuffer);
     glViewport(previousViewport[0], previousViewport[1], previousViewport[2], previousViewport[3]);
@@ -138,7 +140,7 @@ void SkyAtmosphere::BindAerialPerspectiveVolume(unsigned int slot) const {
     glBindTexture(GL_TEXTURE_3D, aerialPerspectiveTexture);
 }
 
-void SkyAtmosphere::Load(Window&) {
+void SkyAtmosphere::Load(Window&, const SunLight& sunLight) {
     luts.clear();
     luts.reserve(2);
     luts.emplace_back("transmittance_lut.png", 256, 64);
@@ -146,7 +148,7 @@ void SkyAtmosphere::Load(Window&) {
 
     shader_sky_atmosphere.use();
     SetAtmosphereUniforms(shader_sky_atmosphere, parameters);
-    SetScatteringUniforms(shader_sky_atmosphere, parameters);
+    SetScatteringUniforms(shader_sky_atmosphere, parameters, sunLight);
 
     RenderTransmittanceLUT();
     SaveTransmittanceLUT("transmittance_lut.png");
@@ -155,7 +157,7 @@ void SkyAtmosphere::Load(Window&) {
     parametersDirty = false;
 }
 
-void SkyAtmosphere::Render(Camera& camera, RenderProfiler& profiler, bool outputLinear) {
+void SkyAtmosphere::Render(Camera& camera, RenderProfiler& profiler, const SunLight& sunLight, bool outputLinear, bool useSceneShadow) {
     A3_PROFILE_PASS(profiler, "Atmosphere");
     shader_sky_atmosphere.use();
     shader_sky_atmosphere.setBool("outputLinear", outputLinear);
@@ -167,7 +169,7 @@ void SkyAtmosphere::Render(Camera& camera, RenderProfiler& profiler, bool output
 
     if (parametersDirty) {
         SetAtmosphereUniforms(shader_sky_atmosphere, parameters);
-        SetScatteringUniforms(shader_sky_atmosphere, parameters);
+        SetScatteringUniforms(shader_sky_atmosphere, parameters, sunLight);
         RenderTransmittanceLUT();
         RenderSkyViewLUT();
         shader_sky_atmosphere.setInt("MODE", 0);
@@ -178,7 +180,7 @@ void SkyAtmosphere::Render(Camera& camera, RenderProfiler& profiler, bool output
     if (const LUT* skyViewLUT = GetLUT("sky_view_lut.png")) skyViewLUT->Bind(1);
     glActiveTexture(GL_TEXTURE0);
 
-    shader_sky_atmosphere.setBool("useVolumeShadow", shadowTexture != 0 && !outputLinear);
+    shader_sky_atmosphere.setBool("useVolumeShadow", shadowTexture != 0 && useSceneShadow);
     shader_sky_atmosphere.setMat4("shadowViewProjection", shadowViewProjection);
     shader_sky_atmosphere.setInt("shadowMap", 2);
     glActiveTexture(GL_TEXTURE2);

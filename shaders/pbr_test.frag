@@ -1,4 +1,4 @@
-﻿#version 330 core
+#version 330 core
 #define PI 3.14159265358979323846
 // material
 
@@ -98,9 +98,7 @@ void main()
 
     vec3 ambient = light.ambient * albedo;
 
-    // vec3 color = (L0 + ambient);
-    vec3 color = (L0 + ambient) / ((L0 + ambient) + 1.0f);
-    color = pow(color, vec3(1.0/2.2)); 
+    vec3 color = L0 + ambient;
 
     FragColor = vec4(color, 1.0);
 }

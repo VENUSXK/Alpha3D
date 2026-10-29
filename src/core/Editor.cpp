@@ -18,6 +18,7 @@
 
 #include "renderer/IBL.h"
 #include "renderer/Camera.h"
+#include "components/SunLight.h"
 #include "utils/RenderProfiler.h"
 
 #include "scene/GameObject.h"
@@ -32,6 +33,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #include "components/Terrain.h"
+#include "renderer/Capture.h"
+#include "renderer/PostProcess.h"
 
 void Editor::ShowMaterialPreview() {
     const auto& preview = materialPreview;
@@ -178,6 +181,7 @@ void Editor::RenderMaterialPreview(const IBL& ibl, Camera& camera)
 	preview.shader.setInt("surfaceShadowMap", 13);
 
 	preview.shader.setBool("useAerialPerspective", false);
+	preview.shader.setBool("outputLinear", false);
 	preview.shader.setInt("aerialPerspectiveVolume", 12);
 
 	const glm::mat4 view = glm::lookAt(cameraPosition, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
@@ -331,6 +335,47 @@ void Editor::BeginIBL(IBL& ibl) {
 	ImGui::SliderFloat("Metallic", &materialPreview.metallic, 0.01f, 1.0f, "%.2f");
 	ImGui::SliderFloat("Roughness", &materialPreview.roughness, 0.01f, 1.0f, "%.2f");
 	ImGui::PopID();
+}
+
+void Editor::BeginPostProcess(PostProcess& postProcess) {
+	if (!ImGui::CollapsingHeader("Post Process")) return;
+	ImGui::PushID("Post Process");
+	ImGui::SliderFloat("Exposure", &postProcess.exposure, -10.0f, 10.0f, "%.2f EV");
+	ImGui::SliderFloat("Gamma", &postProcess.gamma, 1.0f, 3.0f, "%.2f");
+	ImGui::PopID();
+}
+
+void Editor::BeginCapture(Capture& capture) {
+	if (ImGui::CollapsingHeader("Capture")) {
+		ImGui::PushID("Capture");
+		GLint maxTextureSize = 0;
+		glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxTextureSize);
+		ImGui::InputInt("Width", &capture.width); ImGui::InputInt("Height", &capture.height);
+		capture.width = std::clamp(capture.width, 1, maxTextureSize); capture.height = std::clamp(capture.height, 1, maxTextureSize);
+		ImGui::InputText("Output Directory", capture.outputDirectory, sizeof(capture.outputDirectory));
+		ImGui::InputText("File Name", capture.fileName, sizeof(capture.fileName));
+		ImGui::Checkbox("Show Frame", &capture.showFrame);
+		if (ImGui::Button("Capture", ImVec2(-FLT_MIN, 0.0f))) capture.Request();
+		if (!capture.GetStatus().empty()) ImGui::TextWrapped("%s", capture.GetStatus().c_str());
+		ImGui::PopID();
+	}
+	if (!capture.showFrame || capture.width <= 0 || capture.height <= 0) return;
+	ImVec2 displaySize = ImGui::GetIO().DisplaySize;
+	if (displaySize.x <= 0.0f || displaySize.y <= 0.0f) return;
+	float captureAspect = float(capture.width) / float(capture.height), displayAspect = displaySize.x / displaySize.y;
+	ImVec2 frameSize = captureAspect < displayAspect ? ImVec2(displaySize.y * captureAspect, displaySize.y) : ImVec2(displaySize.x, displaySize.x / captureAspect);
+	ImVec2 frameMin((displaySize.x - frameSize.x) * 0.5f, (displaySize.y - frameSize.y) * 0.5f), frameMax(frameMin.x + frameSize.x, frameMin.y + frameSize.y);
+	ImDrawList* drawList = ImGui::GetBackgroundDrawList();
+	ImU32 shadeColor = IM_COL32(0, 0, 0, 120), frameColor = IM_COL32(255, 210, 64, 255);
+	drawList->AddRectFilled(ImVec2(0.0f, 0.0f), ImVec2(displaySize.x, frameMin.y), shadeColor);
+	drawList->AddRectFilled(ImVec2(0.0f, frameMax.y), displaySize, shadeColor);
+	drawList->AddRectFilled(ImVec2(0.0f, frameMin.y), ImVec2(frameMin.x, frameMax.y), shadeColor);
+	drawList->AddRectFilled(ImVec2(frameMax.x, frameMin.y), ImVec2(displaySize.x, frameMax.y), shadeColor);
+	drawList->AddRect(frameMin, frameMax, frameColor, 0.0f, 0, 2.0f);
+	drawList->AddLine(ImVec2(frameMin.x + frameSize.x / 3.0f, frameMin.y), ImVec2(frameMin.x + frameSize.x / 3.0f, frameMax.y), frameColor);
+	drawList->AddLine(ImVec2(frameMin.x + frameSize.x * 2.0f / 3.0f, frameMin.y), ImVec2(frameMin.x + frameSize.x * 2.0f / 3.0f, frameMax.y), frameColor);
+	drawList->AddLine(ImVec2(frameMin.x, frameMin.y + frameSize.y / 3.0f), ImVec2(frameMax.x, frameMin.y + frameSize.y / 3.0f), frameColor);
+	drawList->AddLine(ImVec2(frameMin.x, frameMin.y + frameSize.y * 2.0f / 3.0f), ImVec2(frameMax.x, frameMin.y + frameSize.y * 2.0f / 3.0f), frameColor);
 }
 
 void Editor::BeginDetails(GameObject& game_object) {
@@ -516,24 +561,32 @@ bool Editor::WantCaptureKeyboard() const
 }
 
 
+bool Editor::BeginSunLight(SunLight& sunLight) {
+	bool parametersChanged = false;
+	bool directionChanged = false;
+	if (!ImGui::CollapsingHeader("Sun Light")) return false;
+	ImGui::PushID("Sun Light");
+	directionChanged |= ImGui::DragFloat("Longitude", &sunLight.longitude, 0.5f, -180.0f, 180.0f, "%.1f deg");
+	directionChanged |= ImGui::DragFloat("Latitude", &sunLight.latitude, 0.5f, -90.0f, 90.0f, "%.1f deg");
+	sunLight.latitude = glm::clamp(sunLight.latitude, -90.0f, 90.0f);
+	if (directionChanged) {
+		sunLight.UpdateDirection();
+		parametersChanged = true;
+	}
+	if (ImGui::ColorEdit3("Base Color", &sunLight.baseColor.x, ImGuiColorEditFlags_Float | ImGuiColorEditFlags_HDR)) {
+		sunLight.MarkColorDirty();
+		parametersChanged = true;
+	}
+	parametersChanged |= ImGui::SliderFloat("Intensity", &sunLight.intensity, 0.0f, 100.0f, "%.1f");
+	ImGui::PopID();
+	return parametersChanged;
+}
+
 bool Editor::BeginSkyAtmosphere(SkyAtmosphere& sky) {
 	SkyAtmosphereParams& p = sky.parameters;
 	bool parametersChanged = false;
 	if (!ImGui::CollapsingHeader("Sky Atmosphere")) return false;
 	ImGui::PushID("Sky Atmosphere");
-	ImGui::SeparatorText("Sun");
-	parametersChanged |= ImGui::DragFloat("Longitude", &p.sunLongitude, 0.5f, -180.0f, 180.0f, "%.1f deg");
-	parametersChanged |= ImGui::DragFloat("Latitude", &p.sunLatitude, 0.5f, -90.0f, 90.0f, "%.1f deg");
-	p.sunLatitude = glm::clamp(p.sunLatitude, -90.0f, 90.0f);
-	if (parametersChanged) {
-		const float longitude = glm::radians(p.sunLongitude);
-		const float latitude = glm::radians(p.sunLatitude);
-		p.lightDirection = glm::normalize(glm::vec3(
-			cos(latitude) * cos(longitude),
-			sin(latitude),
-			cos(latitude) * sin(longitude)));
-	}
-	parametersChanged |= ImGui::SliderFloat("Light Intensity", &p.lightIntensity, 0.0f, 100.0f, "%.1f");
 	ImGui::SeparatorText("Planet");
 	parametersChanged |= ImGui::DragFloat("Camera Height", &p.cameraHeight, 100.0f, 1.0f, 1000000.0f, "%.0f m");
 	parametersChanged |= ImGui::DragFloat("Planet Radius", &p.planetRadius, 1000.0f, 1.0f, FLT_MAX, "%.0f m");
@@ -548,6 +601,7 @@ bool Editor::BeginSkyAtmosphere(SkyAtmosphere& sky) {
 	parametersChanged |= ImGui::SliderInt("Light Steps", &p.lightSteps, 1, 128);
 	ImGui::SeparatorText("Acceleration");
 	parametersChanged |= ImGui::Checkbox("Use Transmittance LUT", &p.useTransmittanceLUT);
+	parametersChanged |= ImGui::SliderInt("Transmittance LUT Steps", &p.transmittanceLUTSteps, 8, 256);
 	parametersChanged |= ImGui::Checkbox("Use Sky-View LUT", &p.useSkyViewLUT);
 	ImGui::SeparatorText("Aerial Perspective");
 	parametersChanged |= ImGui::Checkbox("Use Aerial Perspective", &p.useAerialPerspective);
@@ -559,6 +613,8 @@ bool Editor::BeginSkyAtmosphere(SkyAtmosphere& sky) {
 	parametersChanged |= ImGui::SliderFloat("Mie Height", &p.mieHeight, 100.0f, 5000.0f, "%.0f m");
 	parametersChanged |= ImGui::SliderFloat("Mie G", &p.mieG, 0.0f, 0.95f, "%.2f");
 	parametersChanged |= ImGui::DragFloat("Max Distance", &p.aerialPerspectiveMaxDistance, 100.0f, 1000.0f, 100000.0f, "%.0f m");
+	ImGui::SliderFloat("Object Distance Scale", &p.objectAerialPerspectiveDistanceScale, 0.1f, 10.0f, "%.2fx");
+	ImGui::SliderFloat("Cloud Distance Scale", &p.cloudAerialPerspectiveDistanceScale, 0.1f, 10.0f, "%.2fx");
 	if (parametersChanged) sky.MarkParametersDirty();
 	ImGui::PopID();
 	return parametersChanged;
@@ -570,34 +626,63 @@ bool Editor::BeginVolumetricCloud(VolumetricCloud& cloud) {
 	if (!ImGui::CollapsingHeader("Volumetric Cloud")) return false;
 	ImGui::PushID("Volumetric Cloud");
 	ImGui::SeparatorText("Density");
-	parametersChanged |= ImGui::SliderFloat("Density Scale", &p.densityScale, 0.0f, 10.0f, "%.2f");
-	parametersChanged |= ImGui::SliderFloat("Extinction", &p.extinction, 0.0f, 10.0f, "%.2f");
+	parametersChanged |= ImGui::DragFloat("Density Scale", &p.densityScale, 0.005f, 0.0f, 2.0f, "%.3f");
+	parametersChanged |= ImGui::DragFloat("Extinction", &p.extinction, 0.005f, 0.0f, 2.0f, "%.3f");
+	parametersChanged |= ImGui::SliderFloat("Cloud Opacity", &p.cloudOpacity, 0.0f, 1.0f, "%.2f");
 	ImGui::SeparatorText("Cloud Map");
-	parametersChanged |= ImGui::DragFloat("Cloud Map Scale", &p.cloudMapScale, 0.5f, 1.0f, 10000000.0f, "%.2f");
+	parametersChanged |= ImGui::DragFloat("Cloud Map Scale", &p.cloudMapScale, 100.0f, 100.0f, 1000000.0f, "%.0f m");
+	parametersChanged |= ImGui::SliderFloat("Coverage Blend", &p.cloudCoverageBlend, 0.0f, 1.0f, "%.2f");
+	parametersChanged |= ImGui::Checkbox("Animate Coverage Blend", &p.animateCoverageBlend);
+	parametersChanged |= ImGui::SliderFloat("Coverage Variation", &p.coverageBlendAmplitude, 0.0f, 0.5f, "%.2f");
+	parametersChanged |= ImGui::SliderFloat("Coverage Speed", &p.coverageBlendSpeed, 0.001f, 10.0f, "%.3f");
+	parametersChanged |= ImGui::SliderFloat("Anvil Bias", &p.anvilBias, -1.0f, 1.0f, "%.2f");
+	ImGui::SeparatorText("Height Shaping");
+	parametersChanged |= ImGui::Checkbox("Use Height Profile", &p.useHeightProfile);
+	parametersChanged |= ImGui::Checkbox("Use Base Reduction", &p.useBaseReduction);
+	bool heightProfileChanged = false;
+	heightProfileChanged |= ImGui::DragFloat4("Stratus Profile", &p.stratusProfile.x, 0.01f, 0.0f, 1.0f, "%.2f");
+	heightProfileChanged |= ImGui::DragFloat4("Stratocumulus Profile", &p.stratocumulusProfile.x, 0.01f, 0.0f, 1.0f, "%.2f");
+	heightProfileChanged |= ImGui::DragFloat4("Cumulus Profile", &p.cumulusProfile.x, 0.01f, 0.0f, 1.0f, "%.2f");
+	if (heightProfileChanged) {
+		auto constrainProfile = [](glm::vec4& profile) {
+			profile.x = glm::clamp(profile.x, 0.0f, 0.997f); profile.y = glm::clamp(profile.y, profile.x + 0.001f, 0.998f);
+			profile.z = glm::clamp(profile.z, profile.y, 0.999f); profile.w = glm::clamp(profile.w, profile.z + 0.001f, 1.0f);
+		};
+		constrainProfile(p.stratusProfile); constrainProfile(p.stratocumulusProfile);
+		constrainProfile(p.cumulusProfile);
+		parametersChanged = true;
+	}
 	ImGui::SeparatorText("Noise");
 	parametersChanged |= ImGui::Checkbox("Use Low Frequency Noise", &p.useLowFreqNoise);
-	parametersChanged |= ImGui::DragFloat("Low Frequency Noise Scale", &p.lowFreqNoiseScale, 0.5f, 1.0f, 10000000.0f, "%.2f");
+	parametersChanged |= ImGui::DragFloat("Low Frequency Noise Scale", &p.lowFreqNoiseScale, 10.0f, 10.0f, 100000.0f, "%.0f m");
 	parametersChanged |= ImGui::Checkbox("Use High Frequency Noise", &p.useHighFreqNoise);
-	parametersChanged |= ImGui::DragFloat("High Frequency Noise Scale", &p.highFreqNoiseScale, 0.5f, 1.0f, 10000000.0f, "%.2f");
+	parametersChanged |= ImGui::DragFloat("High Frequency Noise Scale", &p.highFreqNoiseScale, 5.0f, 1.0f, 10000.0f, "%.0f m");
 	parametersChanged |= ImGui::SliderFloat("Erosion Strength", &p.erosionStrength, 0.0f, 1.0f, "%.2f");
+	ImGui::SeparatorText("Wind Animation");
+	parametersChanged |= ImGui::DragFloat3("Wind Direction", &p.windDirection.x, 0.01f, -1.0f, 1.0f, "%.2f");
+	parametersChanged |= ImGui::DragFloat("Wind Speed", &p.windSpeed, 1.0f, 0.0f, 500.0f, "%.1f m/s");
+	parametersChanged |= ImGui::DragFloat("Noise Speed", &p.noiseSpeed, 1.0f, p.windSpeed + 0.1f, 1000.0f, "%.1f m/s");
+	parametersChanged |= ImGui::DragFloat("Cloud Top Offset", &p.cloudTopOffset, 10.0f, -10000.0f, 10000.0f, "%.0f m");
 	ImGui::SeparatorText("Lighting");
-	parametersChanged |= ImGui::DragFloat3("Light Direction", &p.lightDirection.x, 0.01f, -1.0f, 1.0f, "%.2f");
-	parametersChanged |= ImGui::ColorEdit3("Light Color", &p.lightColor.x, ImGuiColorEditFlags_Float | ImGuiColorEditFlags_HDR);
-	parametersChanged |= ImGui::ColorEdit3("Ambient Light", &p.ambientLight.x, ImGuiColorEditFlags_Float | ImGuiColorEditFlags_HDR);
-	parametersChanged |= ImGui::SliderFloat("Light Intensity", &p.lightIntensity, 0.0f, 50.0f, "%.1f");
+	parametersChanged |= ImGui::SliderFloat("Sun Light Multiplier", &p.sunLightMultiplier, 0.0f, 10.0f, "%.2fx");
+	parametersChanged |= ImGui::SliderFloat("Ambient Light Intensity", &p.ambientLightIntensity, 0.0f, 2.0f, "%.2f");
 	ImGui::SeparatorText("Ray Marching");
-	parametersChanged |= ImGui::SliderInt("Primary Steps", &p.primarySteps, 1, 96);
-	parametersChanged |= ImGui::SliderInt("Light Steps", &p.lightSteps, 1, 64);
+	parametersChanged |= ImGui::SliderInt("Primary Steps", &p.primarySteps, 8, 256);
+	parametersChanged |= ImGui::SliderInt("Light Steps", &p.lightSteps, 1, 128);
 	parametersChanged |= ImGui::SliderFloat("Ray Jitter", &p.rayJitterStrength, 0.0f, 1.0f, "%.2f");
-	parametersChanged |= ImGui::DragFloat("Transmittance Cutoff", &p.transmittanceCutoff, 0.0005f, 0.0001f, 0.1f, "%.4f");
+	parametersChanged |= ImGui::SliderFloat("Transmittance Cutoff", &p.transmittanceCutoff, 0.0001f, 0.1f, "%.4f", ImGuiSliderFlags_Logarithmic);
 	ImGui::SeparatorText("Nubis Lighting");
 	parametersChanged |= ImGui::SliderFloat("Phase G", &p.phaseG, -0.95f, 0.95f, "%.2f");
+	parametersChanged |= ImGui::SliderFloat("Silver Intensity", &p.silverIntensity, 0.0f, 5.0f, "%.2f");
+	parametersChanged |= ImGui::SliderFloat("Silver Spread", &p.silverSpread, 0.0f, 0.99f, "%.2f");
+	parametersChanged |= ImGui::SliderFloat("Top Density Exponent", &p.heightExponentTop, 0.1f, 3.0f, "%.2f");
+	parametersChanged |= ImGui::SliderFloat("Lighting Density LOD Scale", &p.lightingDensityLodScale, 1.0f, 16.0f, "%.1fx");
 	ImGui::SeparatorText("Cloud Volume");
 	glm::vec3 scale = p.cloudMapVolumeScale;
 	glm::vec3 translation = p.cloudMapVolumeTranslation;
 	bool transformChanged = false;
-	transformChanged |= ImGui::DragFloat3("Volume Scale", &scale.x, 0.5f, 0.01f, 10000000.0f, "%.4f");
-	transformChanged |= ImGui::DragFloat3("Volume Translation", &translation.x, 0.5f, -1000.0f, 10000000.0f, "%.4f");
+	transformChanged |= ImGui::DragFloat3("Volume Scale", &scale.x, 100.0f, 1.0f, 1000000.0f, "%.0f m");
+	transformChanged |= ImGui::DragFloat3("Volume Translation", &translation.x, 10.0f, -1000000.0f, 1000000.0f, "%.0f m");
 	if (transformChanged) {
 		scale = glm::max(scale, glm::vec3(0.01f));
 		cloud.updateVolumeTransform(scale, translation);

@@ -69,6 +69,9 @@
     <ClCompile Include="src\renderer\Camera.cpp">
       <Filter>Source\Core</Filter>
     </ClCompile>
+    <ClCompile Include="src\renderer\Capture.cpp">
+      <Filter>Source\Renderer</Filter>
+    </ClCompile>
     <ClCompile Include="src\core\Config.cpp">
       <Filter>Source\Core</Filter>
     </ClCompile>
@@ -87,11 +90,17 @@
     <ClCompile Include="src\renderer\Model.cpp">
       <Filter>Source\Renderer</Filter>
     </ClCompile>
+    <ClCompile Include="src\renderer\PostProcess.cpp">
+      <Filter>Source\Renderer</Filter>
+    </ClCompile>
     <ClCompile Include="src\scene\Scene.cpp">
       <Filter>Source\Scene</Filter>
     </ClCompile>
     <ClCompile Include="src\renderer\Shader.cpp">
       <Filter>Source\Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="src\components\SunLight.cpp">
+      <Filter>Source\Components</Filter>
     </ClCompile>
     <ClCompile Include="src\renderer\Texture.cpp">
       <Filter>Source\Renderer</Filter>
@@ -218,6 +227,12 @@
     <None Include="shaders\terrain\terrain.vert">
       <Filter>Shader</Filter>
     </None>
+    <None Include="shaders\post_process\full_screen.vert">
+      <Filter>Shader</Filter>
+    </None>
+    <None Include="shaders\post_process\post_process.frag">
+      <Filter>Shader</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\scene\Scene.h">
@@ -228,6 +243,9 @@
     </ClInclude>
     <ClInclude Include="include\renderer\Camera.h">
       <Filter>Headers\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="include\renderer\Capture.h">
+      <Filter>Headers\Renderer</Filter>
     </ClInclude>
     <ClInclude Include="include\core\Editor.h">
       <Filter>Headers\Core</Filter>
@@ -250,8 +268,14 @@
     <ClInclude Include="include\renderer\Model.h">
       <Filter>Headers\Renderer</Filter>
     </ClInclude>
+    <ClInclude Include="include\renderer\PostProcess.h">
+      <Filter>Headers\Renderer</Filter>
+    </ClInclude>
     <ClInclude Include="include\renderer\Shader.h">
       <Filter>Headers\Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="include\components\SunLight.h">
+      <Filter>Headers\Components</Filter>
     </ClInclude>
     <ClInclude Include="include\renderer\Texture.h">
       <Filter>Headers\Renderer</Filter>

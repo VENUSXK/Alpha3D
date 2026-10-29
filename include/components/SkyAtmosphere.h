@@ -8,13 +8,10 @@
 class Camera;
 class Editor;
 class RenderProfiler;
+class SunLight;
 class Window;
 
 struct SkyAtmosphereParams {
-    float sunLongitude = -90.0f;
-    float sunLatitude = 33.4f;
-    float lightIntensity = 20.0f;
-    glm::vec3 lightDirection = glm::normalize(glm::vec3(0.0f, 0.55f, -0.84f));
     float cameraHeight = 100.0f;
 
     // test
@@ -28,7 +25,7 @@ struct SkyAtmosphereParams {
 
     // scattering params
     glm::vec3 rayleighBeta = glm::vec3(5.5e-6f, 13.0e-6f, 22.4e-6f);
-    glm::vec3 mieBeta = glm::vec3(21.0e-6f);
+    glm::vec3 mieBeta = glm::vec3(33.1e-6f);
     glm::vec3 absorptionBeta = glm::vec3(2.04e-5f, 4.97e-5f, 1.95e-6f);
 
     // scattering
@@ -36,7 +33,7 @@ struct SkyAtmosphereParams {
     float mieHeight = 1200.0f;
     float absorptionHeight = 30000.0f;
     float absorptionFalloff = 4000.0f;
-    float mieG = 0.7f;
+    float mieG = 0.5f;
 
     // post-effects
     float exposure = 1.0f;
@@ -55,14 +52,16 @@ struct SkyAtmosphereParams {
     bool useAerialPerspective = true;
     int aerialPerspectiveSize = 32;
     float aerialPerspectiveMaxDistance = 40000.0f;
+    float objectAerialPerspectiveDistanceScale = 1.0f;
+    float cloudAerialPerspectiveDistanceScale = 1.0f;
 
     int aerialPerspectiveSteps = 32;
 };
 
 class SkyAtmosphere {
 public:
-    void Load(Window& window);
-    void Render(Camera& camera, RenderProfiler& profiler, bool outputLinear);
+    void Load(Window& window, const SunLight& sunLight);
+    void Render(Camera& camera, RenderProfiler& profiler, const SunLight& sunLight, bool outputLinear, bool useSceneShadow);
     void Unload();
     void RenderEditor(Editor& editor);
     void MarkParametersDirty() { parametersDirty = true; }
@@ -72,14 +71,12 @@ public:
 
     void RenderTransmittanceLUT();
     void RenderSkyViewLUT();
+    const LUT* GetTransmittanceLUT() const { return GetLUT("transmittance_lut.png"); }
     bool SaveTransmittanceLUT(const std::string& outputPath) const;
     bool SaveSkyViewLUT(const std::string& outputPath) const;
 
-    void RenderAerialPerspectiveVolume(Camera& camera);
+    void RenderAerialPerspectiveVolume(Camera& camera, const SunLight& sunLight);
     void BindAerialPerspectiveVolume(unsigned int slot) const;
-
-    glm::vec3 getLightDirection() { return parameters.lightDirection; }
-    float getLightIntensity() { return parameters.lightIntensity; }
 
     unsigned int shadowTexture = 0;
     glm::mat4 shadowViewProjection = glm::mat4(1.0f);

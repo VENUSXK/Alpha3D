@@ -8,7 +8,7 @@ void Viewport::Init(float w, float h) {
 
     glGenTextures(1, &colorTexture);
     glBindTexture(GL_TEXTURE_2D, colorTexture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, (GLsizei)width, (GLsizei)height, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, (GLsizei)width, (GLsizei)height, 0, GL_RGBA, GL_FLOAT, nullptr);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -29,6 +29,15 @@ void Viewport::Init(float w, float h) {
     GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+Viewport::~Viewport() { Unload(); }
+
+void Viewport::Unload() {
+    if (fboID) glDeleteFramebuffers(1, &fboID);
+    if (colorTexture) glDeleteTextures(1, &colorTexture);
+    if (depthTexture) glDeleteTextures(1, &depthTexture);
+    fboID = colorTexture = depthTexture = 0;
 }
 
 void Viewport::BeginRender() {
@@ -53,7 +62,7 @@ void Viewport::Resize(float newWidth, float newHeight)
 
     // 重新设置颜色贴图大小
     glBindTexture(GL_TEXTURE_2D, colorTexture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, (GLsizei)width, (GLsizei)height, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, (GLsizei)width, (GLsizei)height, 0, GL_RGBA, GL_FLOAT, nullptr);
 
     // 重新设置深度贴图大小
     glBindTexture(GL_TEXTURE_2D, depthTexture);
